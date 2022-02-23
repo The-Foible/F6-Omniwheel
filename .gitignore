@@ -31,4 +31,7 @@
 *.out
 *.app
 
+Proteus.elf
+Proteus.map
+Proteus.s19
 
