@@ -60,18 +60,38 @@ FEHServo arm_servo(FEHServo::Servo0);
     /*
     The MoveArmServo function takes in an angle to rotate the servo to  
     */
-    void MoveArmServo(float angle, float time) {
-        //USE FOR CALIBRATION BEFORE SERVO USE
-        /*
-        arm_servo.Touchalibrate();
-        arm_servo.SetMax();
-        arm_servo.SetMin();
-        */
-        
+    void MoveArmServo(float angle) {
         //Move servo to entered position
         arm_servo.SetDegree(angle);
     }
 
+
+   void TranslateWithTime (float time, float power, float x_pos, float y_pos) {
+       
+        r_encoder.ResetCounts();
+        l_encoder.ResetCounts();
+        b_encoder.ResetCounts();
+
+        //Use RPS to calculate distance to a point
+        float current_x_pos = RPS.X();
+        float current_y_pos = RPS.Y();
+        float distance = sqrt(pow(x_pos - current_x_pos,2) + pow(y_pos - current_y_pos, 2));
+
+        //Calculate angle of translation
+        float angle = atan2(y_pos - current_y_pos, x_pos - current_x_pos);
+
+        //Set motor powers according to angle
+        r_motor.SetPercent(-power * sin(onePIsix - angle));
+        l_motor.SetPercent(-power * sin(fivePIsix - angle));
+        b_motor.SetPercent(-power * sin(threePItwo - angle));
+
+        Sleep(time);
+
+        r_motor.Stop();
+        l_motor.Stop();
+        b_motor.Stop();
+
+   }
     /*
     The TranslateWithRPS function takes in a power along with a final position for the robot, as x and y coordinates, and 
     uses RPS to determine the angle and distance for which the robot needs to move. These calculations are used to set the 
@@ -293,19 +313,70 @@ FEHServo arm_servo(FEHServo::Servo0);
 
 int main(void)
 {
-    //Set all motors to zero at the start of the run
-    /*
-    l_motor.SetPercent(0);
-    r_motor.SetPercent(0);
-    b_motor.SetPercent(0);
-    */
+    //Calibrate the servo
+    arm_servo.SetMax(2407);
+    arm_servo.SetMin(571);
 
+    //Start servo angle
+    MoveArmServo(180);
 
     //Call function to wait for the red light to turn on
     while(!GetLightColor());
     Sleep(0.5);
 
+    //Move to the base of the ramp
+    TranslateWithEncoders(0,14.5,25);
+    Sleep(0.5);
+
+    //Turn towards the ramp
+    TurnWithEncoders(-220,25);
+
+    //Move up the ramp
+    TranslateWithEncoders(0,-33,80);
+    Sleep(0.5);
+    TurnWithEncoders(180, 25);
+    Sleep(0.5);
+
+    //Move sideways to wall
+    TranslateWithTime(3.0, 25, -11.5, 0);
+    Sleep(0.5);
+
+    //Back into the sink
+    TranslateWithTime(2.0, 20, 0, -2); 
+    Sleep(0.5);   
+
+    //Use servos to dump the tray
+    MoveArmServo(60);
+    Sleep(1.0);
+
+    //Move towards the ticket slider
+    TranslateWithEncoders(24.5,0,25);
+    Sleep(0.5);
+    MoveArmServo(0);
+
+    //Back up towards ticket
+    TranslateWithEncoders(0,-7.25,25);
+    Sleep(0.5);
+
+    //Move ticket forward
+    TranslateWithEncoders(-5.5,0,25);
+    Sleep(0.5);
+
+    //Back away from ticket
+    TranslateWithEncoders(1,0,25);
+    Sleep(0.5);
+
+    //Move to burger plate
+    TranslateWithEncoders(0,24,25);
+    Sleep(0.5);
+
+
+
+
     
+
+
+
 
    
     
@@ -445,4 +516,6 @@ int main(void)
     */
 
 }
+
+
 
