@@ -26,6 +26,7 @@ FEHMotor l_motor(FEHMotor::Motor1, 9.0);
 FEHMotor b_motor(FEHMotor::Motor2, 9.0);
 
 FEHServo arm_servo(FEHServo::Servo0);
+FEHServo flip_servo(FEHServo::Servo1);
 
     /*
     The GetLightColor function determines the color of light detected by the CdS cell based on analog output values. It 
@@ -58,13 +59,22 @@ FEHServo arm_servo(FEHServo::Servo0);
     }
 
     /*
-    The MoveArmServo function takes in an angle to rotate the servo to  
+    The MoveArmServo function takes in an angle and rotates the servo on the robot's arm to that degree
     */
     void MoveArmServo(float angle) {
         //Move servo to entered position
         arm_servo.SetDegree(angle);
     }
 
+    /*
+    The MoveFlipServo function takes in an angle and rotates the servo on the robot's burger flipping mechanism to that 
+    degree. 
+    */
+    void MoveBurgerServo(){
+        flip_servo.SetDegree(180);
+        Sleep(0.5);
+        flip_servo.SetDegree(0);
+    }
 
    void TranslateWithTime (float time, float power, float x_pos, float y_pos) {
        
@@ -313,6 +323,41 @@ FEHServo arm_servo(FEHServo::Servo0);
 
 int main(void)
 {
+    //initialize RPS
+    RPS.InitializeTouchMenu();
+
+    //Calibrate the servo
+    flip_servo.SetMax(2405);
+    flip_servo.SetMin(520);
+
+    //Set the degree to 0 at beginning of run
+    flip_servo.SetDegree(0);
+
+    //Call function to wait for the red light to turn on
+    while(!GetLightColor());
+    Sleep(0.5);
+
+    //Move to the base of the ramp
+    TranslateWithEncoders(0,14.5,25);
+    Sleep(0.5);
+
+    //Turn towards the ramp
+    TurnWithEncoders(-220,25);
+
+    //Move up the ramp
+    TranslateWithEncoders(0,-33,80);
+    Sleep(0.5);
+    TurnWithRPS(90, 25);
+    Sleep(0.5);
+
+    //Move to Burger Plate
+
+
+
+
+
+
+/* SECOND PERFORMACE TEST
     //Calibrate the servo
     arm_servo.SetMax(2407);
     arm_servo.SetMin(571);
@@ -369,153 +414,13 @@ int main(void)
     //Move to burger plate
     TranslateWithEncoders(0,24,25);
     Sleep(0.5);
-
-
-
-
-    
-
-
-
-
-   
-    
-
-/*
-        //Call function to move forward 8 inches
-        moveForward(9.5,25);
-
-   
-
-        Sleep(0.5);
-
-        //Turn left 45 degrees
-
-        turn(41.5, 25);
-
-        Sleep(0.5);
- 
-        LCD.WriteAt("end",0,50);
-        //Call function to move left 11.5 inches
-
-        moveForward(10.75, 25);
- 
-
-        //Determine color of the light sensor
-
- 
-
-        bool color = GetLightColor();
-        if (color) {
-            LCD.WriteAt("red",0,0);
-        }
-        else {
-            LCD.WriteAt("blue",0,0);
-        }
-        //LCD.WriteAt(color, 0,0);
-       
-
-   
-        Sleep(0.5);
- 
-
-        //move to correct button
-
-        if (color == 1) {
-
-            //turn right 90 and move forward to red button
-            moveForward(3.5, 25);
-            Sleep(0.5);
-            turn(90,25);
-            Sleep(0.5);
-            moveForward(2,18);
-            Sleep(0.5);
-            moveForward(2,25);
-            Sleep(0.5);
-
-
-
-
-            //go back to original spot
-            //moveForward(-0.5,25);
-            //Sleep(0.5);
-            moveForward(-2.5,18);
-            Sleep(0.5);
-            turn(85,25);
-            Sleep(0.5);
-            moveForward(3.5,25);
-
-
-
-            //change after performance test one
-
-            Sleep(0.5);
-            moveForward(9.5,25);
-            Sleep(0.5);
-            turn(80,25);
-            Sleep(0.5);
-            moveForward(40,60);
-            Sleep(1.0);
-            moveForward(-40,40);
-            LCD.WriteAt("done",50,50);
-
-
-
-
-
-        }
-
-        else {
-
-
-            turn(80,25);
-            Sleep(0.5);
-            moveForward(2,18);
-            Sleep(0.5);
-            turn(5,25);
-            Sleep(0.5);
-            moveForward(2,25);
-            Sleep(0.5);
-
-
-
-            //reverse movements
-
-            moveForward(-0.5,25);
-            Sleep(0.5);
-            turn(5,25);
-            Sleep(0.5);
-            moveForward(-2,18);
-            Sleep(0.5);
-            turn(85,25);
-            Sleep(0.5);
-
-
-
-            //change after performance test one
-
-
-
-            Sleep(0.5);
-            moveForward(8.5,25);
-            Sleep(0.5);
-            turn(70,25);
-            Sleep(0.5);
-            moveForward(40,60);
-            Sleep(1.0);
-            moveForward(-40,40);
-            LCD.WriteAt("done",50,50);
-
-
-        }
-
- 
-
-    return(0);
-
-    */
+*/
 
 }
+
+
+
+
 
 
 
