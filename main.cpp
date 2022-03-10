@@ -14,6 +14,8 @@
 #define fivePIsix 2.61799387799
 #define threePItwo 4.71238898038
 #define onePIsix 0.52359877559
+
+#define countsperinch 40.4890175226
  
 DigitalEncoder r_encoder(FEHIO::P0_2);
 DigitalEncoder l_encoder(FEHIO::P0_0);
@@ -27,6 +29,95 @@ FEHMotor b_motor(FEHMotor::Motor2, 9.0);
 
 FEHServo arm_servo(FEHServo::Servo0);
 FEHServo flip_servo(FEHServo::Servo1);
+
+#define PID_P 0.75
+#define PID_I 0.1
+#define PID_D 0.25
+
+//Class to control a motor by PID
+class MotorPID{
+    private: 
+        float prevTime = 0, prevError = 0, prevCounts = 0, totalError = 0;
+        float newTime = 0, newError = 0, newCounts = 0;
+        float distanceTraveled = 0;
+        float currentSpeed = 0, targetSpeed = 0;
+        float termP = 0, termI = 0, termD = 0;
+        FEHMotor* motor;
+        DigitalEncoder* encoder;
+        const float PowerPerInchPerSec = 4; //! MUST BE MEASURED
+    public:
+        MotorPID(FEHMotor* m, DigitalEncoder* e){ //Constructor that takes FEHMotor and FEHEncoder inputs 
+            motor = m;
+            encoder = e;
+            prevTime = TimeNow();
+        }
+
+        //Query method for distance
+        float GetDistanceTraveled(){ 
+            return distanceTraveled;
+        }
+
+        //Query method for encoder counts (probably better off using distance)
+        int GetEncoderCounts(){
+            return encoder->Counts(); 
+        }
+
+        void Reset(){
+            //Reset all PID values
+            prevTime = TimeNow(), prevError = 0, prevCounts = 0, totalError = 0;
+            newTime = 0, newError = 0, newCounts = 0;
+            distanceTraveled = 0;
+            targetSpeed = 0;
+
+            //Reset encoder counts //? not sure if this is a good idea
+            encoder->ResetCounts();
+        }
+
+        //Set speed in inches/second
+        void SetSpeed(float speed){
+            targetSpeed = speed;
+            Reset(); //Any time the speed is changed, reset the PID
+        }
+
+        //Set speed in power percentage (converts to inch/s)
+        void SetPower(float power){
+            targetSpeed = power / PowerPerInchPerSec; //convert to inch/s
+            Reset();
+        }
+
+        //Call repeatedly to drive the motor.
+        //Returns motor power
+        //Make sure to Reset() before driving if the object was not initalized recently (to get an accurate prevTime)
+        void Drive(float t){ //Takes a time input so it only has to be queried once in main
+            //Calculate 'new' values
+            newTime = TimeNow();
+            newCounts = encoder->Counts();
+            currentSpeed = (newCounts-prevCounts)/(newTime-prevTime) / countsperinch;
+            newError = targetSpeed - currentSpeed;
+
+            //Update distance traveled
+            distanceTraveled += newCounts / countsperinch;
+
+            //Calculate proportional term
+            termP = newError * PID_P;
+            
+            //Calculate integral term
+            totalError += newError;
+            termI = totalError * PID_I;
+
+            //Calculate derivative term
+            termD = (newError-prevError) * PID_D;
+
+            //Send new values to prev values
+            prevTime = newTime;
+            prevCounts = newCounts;
+            prevError = newError;
+
+            //Set the motor power by PID
+            //Calculates inches per seocond and then converts to power%
+            motor->SetPercent((targetSpeed + termP + termI + termD) * PowerPerInchPerSec);
+        }
+};
 
     /*
     The GetLightColor function determines the color of light detected by the CdS cell based on analog output values. It 
@@ -131,8 +222,6 @@ FEHServo flip_servo(FEHServo::Servo1);
         bool l_done = false;
         bool b_done = false;
 
-        const float countsperinch = 40.4890175226;
-
         //Use Encoders to run the motors until reaching final point
         while (!r_done || !l_done || !b_done) {
             //Set states to stop the motors
@@ -166,7 +255,7 @@ FEHServo flip_servo(FEHServo::Servo1);
         b_encoder.ResetCounts();
 
         //Calculate distance to a point
-        float distance = sqrt(pow(x_pos,2) + pow(y_pos,2));
+        float distance = hypot(x_pos, y_pos);
         
         //Calculate angle of translation
         float angle = atan2(y_pos, x_pos);
@@ -180,8 +269,6 @@ FEHServo flip_servo(FEHServo::Servo1);
         bool r_done = false;
         bool l_done = false;
         bool b_done = false;
-
-        const float countsperinch = 40.4890175226;
 
         //Use Encoders to run the motors until reaching final point
         while (!r_done || !l_done || !b_done) {
@@ -224,7 +311,7 @@ FEHServo flip_servo(FEHServo::Servo1);
         l_encoder.ResetCounts();
 
         //318 / 2(pi)(1.25) = 40.4890175226 counts per inch
-        const float countsperinch = 0.866 * 40.4890175226 * 0.9523; //0.9523 accounts for going too far
+        const float adjustedcountsperinch = 0.866 * countsperinch * 0.9523; //0.9523 accounts for going too far
         if (distance < 0) {
             r_motor.SetPercent(-1 * speed);
             l_motor.SetPercent(1 * speed);
@@ -238,8 +325,8 @@ FEHServo flip_servo(FEHServo::Servo1);
 
         while(!r_done || !l_done) {
         //Stop the motors
-            r_done = (r_encoder.Counts() >= (fabs(distance) * countsperinch));
-            l_done = (l_encoder.Counts() >= (fabs(distance) * countsperinch));
+            r_done = (r_encoder.Counts() >= (fabs(distance) * adjustedcountsperinch));
+            l_done = (l_encoder.Counts() >= (fabs(distance) * adjustedcountsperinch));
 
             if (r_done) {
                 r_motor.SetPercent(0);
@@ -279,8 +366,10 @@ FEHServo flip_servo(FEHServo::Servo1);
             b_motor.SetPercent(power);
         }
        
-        //Use encoders to determine when to stop turning
+        //Use r_encoder to determine when to stop turning (the encoder counts were experimentally tested to be extremely similar)
         while (r_encoder.Counts() < (countsPerDegree * fabs(angle)));
+
+        //Stop the motors
         r_motor.SetPercent(0);
         l_motor.SetPercent(0);
         b_motor.SetPercent(0);
@@ -321,6 +410,40 @@ FEHServo flip_servo(FEHServo::Servo1);
         b_motor.SetPercent(0);
     }
 
+/*
+* Takes a coordinate on the robot course and moves the robot there in a straight line
+* Turns at 65% of the way there
+*/
+void RpsGoto(float x, float y, float heading){
+
+    const float sleepTime = 0.2; //Time to sleep between movements so that RPS can update
+    const float turnAtPercent = 0.65; //What percentage completion to stop and turn at
+
+    float currentHeading = RPS.Heading();
+    //Travel 65% to the point //!This assumes that rps.heading() = 0 when the robot is facing towards +y (upwards)
+    TranslateWithEncoders((x-RPS.X()) * turnAtPercent * cos(currentHeading), (y-RPS.Y()) * turnAtPercent * sin(currentHeading), 35);
+    Sleep(sleepTime); //Wait so that RPS can update
+    
+    //Turn roughly to the angle
+    currentHeading = RPS.Heading(); //update heading
+    TurnWithEncoders(heading-currentHeading, 35);
+    Sleep(sleepTime);
+
+    //Travel the rest of the way to the point at a slower speed 
+    currentHeading = RPS.Heading(); //update heading
+    TranslateWithEncoders((x-RPS.X()) * cos(currentHeading), (y-RPS.Y()) * sin(currentHeading), 25);
+    Sleep(sleepTime);
+
+    //Rotate again at a lower speed 
+    currentHeading = RPS.Heading(); //update heading
+    TurnWithEncoders(heading-currentHeading, 15);
+    Sleep(sleepTime);
+
+    //Translate again at a lower seed
+    currentHeading = RPS.Heading(); //update heading
+    TranslateWithEncoders((x-RPS.X()) * cos(currentHeading), (y-RPS.Y()) * sin(currentHeading), 15);
+}
+
 int main(void)
 {
     //initialize RPS
@@ -330,7 +453,7 @@ int main(void)
     flip_servo.SetMax(2405);
     flip_servo.SetMin(520);
 
-    //Set the degree to 0 at beginning of run
+    //Set the burger flipping servo to 0 at the beginning of run
     flip_servo.SetDegree(0);
 
     //Call function to wait for the red light to turn on
@@ -354,6 +477,19 @@ int main(void)
 
 
 
+    /*
+    *PID control test
+    */
+    // MotorPID r_PID(&r_motor, &r_encoder); //Initialize PID class for right motor
+    // r_PID.SetSpeed(2.1); //Set speed to 2.1 in/s
+
+    // float t = 0;
+    // //While distance traveled is less than 5 inches
+    // while(r_PID.GetDistanceTraveled() < 5.0){
+    //     t = TimeNow(); //Update time
+    //     r_PID.Drive(t); //Drive the motor
+    //     Sleep(100); //Wait for the next iteration
+    // }
 
 
 
