@@ -162,24 +162,24 @@ class MotorPID{
     degree. 
     */
     void MoveBurgerServo(){
-        flip_servo.SetDegree(180);
-        Sleep(0.5);
+        flip_servo.SetDegree(160);
+        Sleep(2.0);
         flip_servo.SetDegree(0);
     }
 
+   /*
+   The TranslateWithTime function takes in a time for the motors to be turned on, a power, and a coorinate point relative to the
+   robot that is use to calculate an angle of motion. This function is used for aligning with walls when using encoders might
+   not be the most efficient method. 
+   */
    void TranslateWithTime (float time, float power, float x_pos, float y_pos) {
-       
+        //Reset encoder counts
         r_encoder.ResetCounts();
         l_encoder.ResetCounts();
         b_encoder.ResetCounts();
 
-        //Use RPS to calculate distance to a point
-        float current_x_pos = RPS.X();
-        float current_y_pos = RPS.Y();
-        float distance = sqrt(pow(x_pos - current_x_pos,2) + pow(y_pos - current_y_pos, 2));
-
         //Calculate angle of translation
-        float angle = atan2(y_pos - current_y_pos, x_pos - current_x_pos);
+        float angle = atan2(y_pos, x_pos);
 
         //Set motor powers according to angle
         r_motor.SetPercent(-power * sin(onePIsix - angle));
@@ -193,55 +193,6 @@ class MotorPID{
         b_motor.Stop();
 
    }
-    /*
-    The TranslateWithRPS function takes in a power along with a final position for the robot, as x and y coordinates, and 
-    uses RPS to determine the angle and distance for which the robot needs to move. These calculations are used to set the 
-    powers for each individual motor. 
-    */
-    void TranslateWithRPS(float x_pos, float y_pos, int power) {
-        //Reset encoders
-        r_encoder.ResetCounts();
-        l_encoder.ResetCounts();
-        b_encoder.ResetCounts();
-
-        //Use RPS to calculate distance to a point
-        float current_x_pos = RPS.X();
-        float current_y_pos = RPS.Y();
-        float distance = sqrt(pow(x_pos - current_x_pos,2) + pow(y_pos - current_y_pos, 2));
-
-        //Calculate angle of translation
-        float angle = atan2(y_pos - current_y_pos, x_pos - current_x_pos);
-
-        //Set motor powers according to angle
-        r_motor.SetPercent(-power * sin(onePIsix - angle));
-        l_motor.SetPercent(-power * sin(fivePIsix - angle));
-        b_motor.SetPercent(-power * sin(threePItwo - angle));
-
-        //Initialize boolean values for encoders
-        bool r_done = false;
-        bool l_done = false;
-        bool b_done = false;
-
-        //Use Encoders to run the motors until reaching final point
-        while (!r_done || !l_done || !b_done) {
-            //Set states to stop the motors
-            //const float countsperinch = 0.866 * 40.4890175226 * 0.9523; //0.9523 accounts for going too far
-            r_done = (r_encoder.Counts() >= (countsperinch * distance * sin(onePIsix - angle)));
-            l_done = (l_encoder.Counts() >= (countsperinch * distance * sin(fivePIsix - angle)));
-            b_done = (b_encoder.Counts() >= (countsperinch * distance * sin(threePItwo - angle)));
-
-            //Stop the motors when states are met
-            if (r_done) {
-                r_motor.Stop();
-            }
-            if (l_done) {
-                l_motor.Stop();
-            }
-            if (b_done) {
-                b_motor.Stop();
-            }
-        }
-    }
 
     /*
     The TranslateWithEncoders function takes in a power along with a distance to be traveled in both the x and y directions,
@@ -304,7 +255,84 @@ class MotorPID{
         }
     }
 
-    //Function to move robot in y direction
+    /*
+    The TranslateWithRPS_X function is used to translate the robot to an exact horizontal position without changing its 
+    current vertical position. 
+    */
+    void TranslateWithRPS_X (float end_x_pos, int power) {
+
+       //Use RPS to calculate the distance to a point
+       float current_x_pos = RPS.X();
+
+       TranslateWithEncoders(end_x_pos - current_x_pos, 0, power);
+    }
+
+    /*
+    The TranslateWithRPS_Y function is used to translate the robot to an exact vertical position without changing its 
+    current horizontal position.
+    */
+    void TranslateWithRPS_Y (float end_y_pos, int power) {
+
+       //Use RPS to calculate the distance to a point
+       float current_y_pos = RPS.Y();
+
+       TranslateWithEncoders(0, end_y_pos - current_y_pos, power);
+    }
+
+    /*
+    The TranslateWithRPS function takes in a power along with a final position for the robot, as x and y coordinates, and 
+    uses RPS to determine the angle and distance for which the robot needs to move. These calculations are used to set the 
+    powers for each individual motor. 
+    */
+    void TranslateWithRPS(float x_pos, float y_pos, int power) {
+        //Reset encoders
+        r_encoder.ResetCounts();
+        l_encoder.ResetCounts();
+        b_encoder.ResetCounts();
+
+        //Use RPS to calculate distance to a point
+        float current_x_pos = RPS.X();
+        float current_y_pos = RPS.Y();
+        float distance = sqrt(pow(x_pos - current_x_pos,2) + pow(y_pos - current_y_pos, 2));
+
+        //Calculate angle of translation
+        float angle = atan2(y_pos - current_y_pos, x_pos - current_x_pos);
+
+        //Set motor powers according to angle
+        r_motor.SetPercent(-power * sin(onePIsix - angle));
+        l_motor.SetPercent(-power * sin(fivePIsix - angle));
+        b_motor.SetPercent(-power * sin(threePItwo - angle));
+
+        //Initialize boolean values for encoders
+        bool r_done = false;
+        bool l_done = false;
+        bool b_done = false;
+
+        //Use Encoders to run the motors until reaching final point
+        while (!r_done || !l_done || !b_done) {
+            //Set states to stop the motors
+            //const float countsperinch = 0.866 * 40.4890175226 * 0.9523; //0.9523 accounts for going too far
+            r_done = (r_encoder.Counts() >= (countsperinch * distance * sin(onePIsix - angle)));
+            l_done = (l_encoder.Counts() >= (countsperinch * distance * sin(fivePIsix - angle)));
+            b_done = (b_encoder.Counts() >= (countsperinch * distance * sin(threePItwo - angle)));
+
+            //Stop the motors when states are met
+            if (r_done) {
+                r_motor.Stop();
+            }
+            if (l_done) {
+                l_motor.Stop();
+            }
+            if (b_done) {
+                b_motor.Stop();
+            }
+        }
+    }
+
+    /*
+    The moveForward function was used in the first performance test to move the robot either forward or backward only. This 
+    function will not be used in the future. 
+    */
     void moveForward(float distance, int speed) {
 
         r_encoder.ResetCounts();
@@ -446,6 +474,8 @@ void RpsGoto(float x, float y, float heading){
 
 int main(void)
 {
+
+/* THIRD PERFRMANCE TEST
     //initialize RPS
     RPS.InitializeTouchMenu();
 
@@ -455,6 +485,7 @@ int main(void)
 
     //Set the burger flipping servo to 0 at the beginning of run
     flip_servo.SetDegree(0);
+    arm_servo.SetDegree(0);
 
     //Call function to wait for the red light to turn on
     while(!GetLightColor());
@@ -473,7 +504,37 @@ int main(void)
     TurnWithRPS(90, 25);
     Sleep(0.5);
 
+    //Move to the right wall
+    TranslateWithTime(4.0, 25, 4, 0);
+    Sleep(0.5);
+
     //Move to Burger Plate
+    TranslateWithEncoders(0,11,25);
+    Sleep(0.5);
+    TranslateWithEncoders(-3.5,0,25);
+    Sleep(0.5);
+    TranslateWithTime(1.0,20, 0, 1);
+    Sleep(0.5);
+
+    //back up
+    TranslateWithEncoders(0, -4, 25);
+    Sleep(0.5);
+
+    //turn
+    TurnWithEncoders(180, 25);
+    Sleep(0.5);
+
+    //move forward
+    TranslateWithEncoders(1.0, 0, 25);
+    Sleep(0.5);
+    MoveArmServo(0);
+    Sleep(0.5);
+    TranslateWithEncoders(0, 1.0, 25);
+    Sleep(0.5);
+
+    //Flip the burger with servo
+    MoveBurgerServo();
+*/
 
 
 
