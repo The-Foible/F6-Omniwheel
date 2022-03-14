@@ -1,12 +1,13 @@
 #include "Menu.h"
-#include "Full_Run.h"
-#include "Utility.h"
+//#include "Full_Run.h"
+//#include "Utility.h"
 #include <FEHLCD.h>
 #include <FEHBattery.h>
 
 
 //Define which program is run by which menu
-#define RUN_FULL_FUNCTION FullRun()
+//#define RUN_FULL_FUNCTION FullRun()
+#define RUN_FULL_FUNCTION
 
 //Based on Proteus Test Code
 
@@ -113,7 +114,7 @@ int MenuFunc5(){return MENU_MAIN;} //todo Create a function that displays RPS va
 int MenuFunc6(){return MENU_MAIN;} //todo Create a function that displays optosensor values (and what color it thinks it sees)
 int MenuFunc7(){return MENU_MAIN;} //todo Create a function that displays encoder counts
 int MenuFunc8(){
-    ShowEncoders();
+    //!ShowEncoders();
     return MENU_MAIN;
     } 
 
