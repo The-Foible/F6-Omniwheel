@@ -1,6 +1,5 @@
 #include <FEHLCD.h>
 #include <FEHIO.h>
-#include <FEHLCD.h>
 #include <FEHMotor.h>
 #include <FEHRPS.h>
 #include <FEHUtility.h>
@@ -17,11 +16,11 @@
 
 #define countsperinch 40.4890175226
  
-DigitalEncoder r_encoder(FEHIO::P0_2);
 DigitalEncoder l_encoder(FEHIO::P0_0);
-DigitalEncoder b_encoder(FEHIO::P0_1);
+DigitalEncoder r_encoder(FEHIO::P0_1);
+DigitalEncoder b_encoder(FEHIO::P0_2);
 
-AnalogInputPin CdS(FEHIO::P3_0);
+AnalogInputPin CdS(FEHIO::P0_3);
 
 FEHMotor r_motor(FEHMotor::Motor0, 9.0);
 FEHMotor l_motor(FEHMotor::Motor1, 9.0);
