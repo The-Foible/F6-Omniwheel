@@ -5,8 +5,12 @@
 #include <FEHUtility.h>
 #include <FEHServo.h>
 #include <FEHUtility.h>
+#include <FEHSD.h>
 #include <math.h>
 #include <time.h>
+#include <string.h>
+#include <sstream>
+#include <string>
 
 #define _USE_MATH_DEFINES //Use M_PI
 
@@ -16,8 +20,8 @@
 
 #define countsperinch 40.4890175226
  
-DigitalEncoder l_encoder(FEHIO::P0_0);
-DigitalEncoder r_encoder(FEHIO::P0_1);
+DigitalEncoder r_encoder(FEHIO::P0_0);
+DigitalEncoder l_encoder(FEHIO::P0_1);
 DigitalEncoder b_encoder(FEHIO::P0_2);
 
 AnalogInputPin CdS(FEHIO::P0_3);
@@ -29,25 +33,65 @@ FEHMotor b_motor(FEHMotor::Motor2, 9.0);
 FEHServo arm_servo(FEHServo::Servo0);
 FEHServo flip_servo(FEHServo::Servo1);
 
-#define PID_P 0.75
-#define PID_I 0.1
-#define PID_D 0.25
+// #define PID_P 0.75
+// #define PID_I 0.1
+// #define PID_D 0.25
+
+// #define PID_P 0.142
+// //#define PID_I 1.3585058795616107
+// #define PID_I 4
+
+// #define PID_D 0
+
+// #define PID_P 0
+// #define PID_I 0
+// #define PID_D 0
+#define PID_P 0
+#define PID_I 0.2
+#define PID_D 0
 
 //Class to control a motor by PID
 class MotorPID{
     private: 
-        float prevTime = 0, prevError = 0, prevCounts = 0, totalError = 0;
-        float newTime = 0, newError = 0, newCounts = 0;
+        float prevTime = 0, prevError = 0, totalError = 0;
+        float newTime = 0, newError = 0;
+        int prevCounts = 0, newCounts = 0;
+
         float distanceTraveled = 0;
         float currentSpeed = 0, targetSpeed = 0;
-        float termP = 0, termI = 0, termD = 0;
+        float Pterm = 0, Iterm = 0, Dterm = 0;
+        int direction = 1;
+
         FEHMotor* motor;
         DigitalEncoder* encoder;
-        const float PowerPerInchPerSec = 4; //! MUST BE MEASURED
-    public:
-        MotorPID(FEHMotor* m, DigitalEncoder* e){ //Constructor that takes FEHMotor and FEHEncoder inputs 
+        FEHFile *sdptr = NULL;
+
+        const float PowerPerInchPerSec = 4.3; //! MUST BE EXPERIMENTALLY MEASURED (4.15 freespin)
+
+    public: //Constructor that takes FEHMotor and FEHEncoder of the target motor
+        MotorPID(FEHMotor* m, DigitalEncoder* e){ 
             motor = m;
             encoder = e;
+        }
+
+        //Destructor to close SD logfile
+        ~MotorPID(){
+            LCD.WriteLine("dtor :)");
+
+            //If the SD card was opened, close it
+            if(sdptr != NULL){
+                SD.FClose(sdptr);
+            }
+        }
+
+        //Opens SD log file for writing
+        void Initialize(const char *logfile){
+            //Open the SD file for writing
+            sdptr = SD.FOpen(logfile, "w");
+
+            //Initialize log with column headers
+            SD.FPrintf(sdptr, "targetSpeed, currentSpeed, power, newTime, prevTime, newError, newCounts, dt, totalError, distanceTraveled, Pterm, Iterm, Dterm\n");
+        
             prevTime = TimeNow();
         }
 
@@ -61,62 +105,94 @@ class MotorPID{
             return encoder->Counts(); 
         }
 
-        void Reset(){
+        //Method to wipe all PID data
+        void ResetAll(){
             //Reset all PID values
             prevTime = TimeNow(), prevError = 0, prevCounts = 0, totalError = 0;
             newTime = 0, newError = 0, newCounts = 0;
             distanceTraveled = 0;
-            targetSpeed = 0;
 
             //Reset encoder counts //? not sure if this is a good idea
             encoder->ResetCounts();
         }
 
+        //Method to reset data between movements
+        void Reset(){
+            prevTime = TimeNow();
+            distanceTraveled = 0;
+        }
+
         //Set speed in inches/second
         void SetSpeed(float speed){
-            targetSpeed = speed;
-            Reset(); //Any time the speed is changed, reset the PID
+            motor->SetPercent(speed*PowerPerInchPerSec); //Set the motor to start moving at the unajusted speed
+            direction = 1-signbit(speed)*2;
+            targetSpeed = fabs(speed);
+            //Reset(); //Any time the speed is changed, reset the PID
         }
 
         //Set speed in power percentage (converts to inch/s)
-        void SetPower(float power){
-            targetSpeed = power / PowerPerInchPerSec; //convert to inch/s
-            Reset();
+        void SetPercent(float power){
+            SetSpeed(power / PowerPerInchPerSec); //convert to inch/s
         }
 
         //Call repeatedly to drive the motor.
         //Returns motor power
-        //Make sure to Reset() before driving if the object was not initalized recently (to get an accurate prevTime)
+        //Make sure to Reset() before driving if the object was not Initialized recently (to get an accurate prevTime)
         void Drive(float t){ //Takes a time input so it only has to be queried once in main
             //Calculate 'new' values
-            newTime = TimeNow();
+            newTime = t;
             newCounts = encoder->Counts();
             currentSpeed = (newCounts-prevCounts)/(newTime-prevTime) / countsperinch;
             newError = targetSpeed - currentSpeed;
 
             //Update distance traveled
-            distanceTraveled += newCounts / countsperinch;
+            distanceTraveled += (newCounts-prevCounts) / countsperinch;
 
             //Calculate proportional term
-            termP = newError * PID_P;
+            Pterm = newError * PID_P;
             
             //Calculate integral term
             totalError += newError;
-            termI = totalError * PID_I;
+            Iterm = totalError * PID_I;
+            // Iterm = totalError * (newTime-prevTime) * PID_I;
+
 
             //Calculate derivative term
-            termD = (newError-prevError) * PID_D;
+            Dterm = (newError-prevError) * PID_D;
+
+            //Log current values to SD
+            if(sdptr != NULL){
+                SD.FPrintf(sdptr, "%f, %f, %f, %f, %f, %f, %d, %f, %f, %f, %f, %f, %f\n", targetSpeed, currentSpeed, (targetSpeed + Pterm + Iterm + Dterm) * PowerPerInchPerSec, newTime, prevTime, newError, (newCounts-prevCounts), (newTime-prevTime), totalError, distanceTraveled, Pterm, Iterm, Dterm);
+            }
+            //SD.FPrintf(sdptr, "%f, %f, %f\n", prevTime, targetSpeed, currentSpeed);
 
             //Send new values to prev values
             prevTime = newTime;
             prevCounts = newCounts;
             prevError = newError;
 
+            //Pterm = Iterm = Dterm = 0;
+
             //Set the motor power by PID
-            //Calculates inches per seocond and then converts to power%
-            motor->SetPercent((targetSpeed + termP + termI + termD) * PowerPerInchPerSec);
+            //If the PID would adjust the motor speed to be backwards, set it to zero. (also sets to zero when the target speed is zero)
+            if( -(Pterm + Iterm + Dterm) > targetSpeed){
+                motor->SetPercent(0);
+
+            } else {
+            //Calculates inches per second and then converts to power%
+            motor->SetPercent(direction * (targetSpeed + Pterm + Iterm + Dterm) * PowerPerInchPerSec);
+            }
+        }
+
+        void Stop(){
+            motor->Stop();
         }
 };
+
+    //Declare each PID as a global object so that functions can access it
+    MotorPID r_PID(&r_motor, &r_encoder); //Initialize PID class for right motor
+    MotorPID l_PID(&l_motor, &l_encoder); //Initialize PID class for left motor
+    MotorPID b_PID(&b_motor, &b_encoder); //Initialize PID class for back motor
 
     /*
     The GetLightColor function determines the color of light detected by the CdS cell based on analog output values. It 
@@ -252,6 +328,63 @@ class MotorPID{
                 b_motor.Stop();
             }
         }
+    }
+
+    /*
+    The TranslateWithEncodersPID function takes in a power along with a distance to be traveled in both the x and y directions,
+    and then calculates an angle and exact distance for the robot to move. Uses a PID to control motor speeds.
+    Speed input is in INCHES PER SECOND
+    */
+    void TranslateWithEncodersPID(float x_pos, float y_pos, float speed) {
+
+        //Calculate distance to a point
+        float distance = hypot(x_pos, y_pos);
+        
+        //Calculate angle of translation
+        float angle = atan2(y_pos, x_pos);
+
+        //Calculate "omnifactor" so that trig is only done once
+        float r_omnifactor = sin(onePIsix - angle);
+        float l_omnifactor = sin(fivePIsix - angle);
+        float b_omnifactor = sin(threePItwo - angle);
+
+        //Set motor powers according to angle
+        r_PID.SetSpeed(-speed * r_omnifactor);
+        l_PID.SetSpeed(-speed * l_omnifactor);
+        b_PID.SetSpeed(-speed * b_omnifactor);
+
+        float t = TimeNow();
+        bool done = false;
+
+        r_PID.Reset();
+        l_PID.Reset();
+        b_PID.Reset();
+
+        //Use Encoders to run the motors until reaching final point (loop to break out of)
+        while (!done) {
+            
+            //Check break condition for 100ms
+            while(TimeNow() - t < 0.1){
+                if(fabs(r_PID.GetDistanceTraveled()) > distance*r_omnifactor && fabs(l_PID.GetDistanceTraveled()) > distance*l_omnifactor && fabs(b_PID.GetDistanceTraveled()) > distance*b_omnifactor){
+                    done = true;
+
+                    r_PID.Stop();
+                    l_PID.Stop();
+                    b_PID.Stop();
+                }
+            }
+            t = TimeNow();    
+
+            //Update PIDs
+            r_PID.Drive(t);
+            l_PID.Drive(t);
+            b_PID.Drive(t);
+        }
+
+        //Stop motors
+        r_PID.Stop();
+        l_PID.Stop();
+        b_PID.Stop();
     }
 
     /*
@@ -472,7 +605,67 @@ void RpsGoto(float x, float y, float heading){
 }
 
 int main(void)
-{
+{   
+    //Initialize each PID object with logfiles
+    r_PID.Initialize("rPIDlog.csv");
+    l_PID.Initialize("lPIDlog.csv");
+    b_PID.Initialize("bPIDlog.csv");
+
+    TranslateWithEncodersPID(10, 0, 9);
+    Sleep(0.2);
+    TranslateWithEncodersPID(0, 10, 8);
+    Sleep(0.2);
+    TranslateWithEncodersPID(-10, 0, 12);
+    Sleep(0.2);
+    TranslateWithEncodersPID(0,-10, 2);
+    Sleep(0.2);
+    
+    // b_PID.SetSpeed(-20);
+    // Sleep(200);
+    // for (int i = 0; i<15; i++){
+    //     Sleep(100);
+    //     b_PID.Drive(TimeNow());
+    // }
+    // b_PID.SetSpeed(-4);
+    // Sleep(200);
+    // for (int i = 0; i<15; i++){
+    //     Sleep(100);
+    //     b_PID.Drive(TimeNow());
+    // }
+    // b_PID.SetSpeed(10);
+    // Sleep(200);
+    // for (int i = 0; i<15; i++){
+    //     Sleep(100);
+    //     b_PID.Drive(TimeNow());
+    // }
+    // b_PID.Stop();
+
+
+    // TranslateWithEncodersPID(10,0,6, r_PID, l_PID, b_PID);
+    // Sleep(0.2);
+    // TranslateWithEncodersPID(0,10,6,s r_PID, l_PID, b_PID);
+    // Sleep(0.2);
+    // TranslateWithEncodersPID(-10,0,6, r_PID, l_PID, b_PID);
+    // Sleep(0.2);
+    // TranslateWithEncodersPID(0,-10,6, r_PID, l_PID, b_PID);
+    // Sleep(0.2);
+
+    // r_PID.SetSpeed(4); //Set speed to 2.1 in/s
+    // l_PID.SetSpeed(4); //Set speed to 2.1 in/s
+    // b_PID.SetSpeed(4); //Set speed to 2.1 in/s
+
+    // float t = 0;
+    // //While distance traveled is less than 5 inches
+    // while(r_PID.GetDistanceTraveled() < 20.0){
+
+    //     Sleep(150); //Wait for the next iteration
+    //     t = TimeNow(); //Update time
+    //     r_PID.Drive(t); //Drive the motor
+    //     l_PID.Drive(t); //Drive the motor
+    //     b_PID.Drive(t); //Drive the motor
+        
+    // }
+
 
 /* THIRD PERFRMANCE TEST
     //initialize RPS
@@ -534,24 +727,6 @@ int main(void)
     //Flip the burger with servo
     MoveBurgerServo();
 */
-
-
-
-    /*
-    *PID control test
-    */
-    // MotorPID r_PID(&r_motor, &r_encoder); //Initialize PID class for right motor
-    // r_PID.SetSpeed(2.1); //Set speed to 2.1 in/s
-
-    // float t = 0;
-    // //While distance traveled is less than 5 inches
-    // while(r_PID.GetDistanceTraveled() < 5.0){
-    //     t = TimeNow(); //Update time
-    //     r_PID.Drive(t); //Drive the motor
-    //     Sleep(100); //Wait for the next iteration
-    // }
-
-
 
 /* SECOND PERFORMACE TEST
     //Calibrate the servo
