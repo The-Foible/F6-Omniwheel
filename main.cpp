@@ -7,10 +7,6 @@
 #include <FEHUtility.h>
 #include <FEHSD.h>
 #include <math.h>
-#include <time.h>
-#include <string.h>
-#include <sstream>
-#include <string>
 
 #define _USE_MATH_DEFINES //Use M_PI
 
@@ -73,12 +69,28 @@ FEHServo flip_servo(FEHServo::Servo1);
 
     /*
     The MoveFlipServo function takes in an angle and rotates the servo on the robot's burger flipping mechanism to that 
-    degree. 
+    degree. The function also implements a code to slow down the motion of the servo. 
     */
     void MoveBurgerServo(){
-        flip_servo.SetDegree(160);
+        //Initialize a variable for degree
+        float degree = 0;
+
+        //Loop to move the servo one degree each hundredth of a second
+        while (degree < 160) {
+            degree = degree + 1;
+            flip_servo.SetDegree(degree);
+            Sleep(10);
+        }
+
+        //Sleep for two seconds when servo reaches its highest position
         Sleep(2.0);
-        flip_servo.SetDegree(0);
+
+        //Loop to move the servo negative one degree eah hundredth of a second
+        while (degree > 0) {
+            degree = degree - 1;
+            flip_servo.SetDegree(0);
+            Sleep(10);
+        }
     }
 
    /*
@@ -87,25 +99,49 @@ FEHServo flip_servo(FEHServo::Servo1);
    not be the most efficient method. 
    */
    void TranslateWithTime (float time, float power, float x_pos, float y_pos) {
-        //Reset encoder counts
-        r_encoder.ResetCounts();
-        l_encoder.ResetCounts();
-        b_encoder.ResetCounts();
-
         //Calculate angle of translation
         float angle = atan2(y_pos, x_pos);
 
-        //Set motor powers according to angle
-        r_motor.SetPercent(-power * sin(onePIsix - angle));
-        l_motor.SetPercent(-power * sin(fivePIsix - angle));
-        b_motor.SetPercent(-power * sin(threePItwo - angle));
+        //Initialize variables for motor power
+        float r_pow, l_pow, b_pow;
+        r_pow = -power * sin(onePIsix - angle);
+        l_pow = -power * sin(fivePIsix - angle);
+        b_pow = -power * sin(threePItwo - angle);
 
+        //Adjust right motor power
+        if (r_pow > 0) {
+            r_pow = r_pow + 5;
+        }
+        else if (r_pow < 0) {
+            r_pow = r_pow - 5;
+        }
+        //Adjust left motor power
+        if (l_pow > 0) {
+            l_pow = l_pow + 5;
+        }
+        else if (l_pow < 0) {
+            l_pow = l_pow - 5;
+        }
+        //Adjust back motor power
+        if (b_pow > 0) {
+            b_pow = b_pow + 5;
+        }
+        else if (b_pow < 0) {
+            b_pow = b_pow - 5;
+        }
+
+        //Set motor powers according to angle
+        r_motor.SetPercent(r_pow);
+        l_motor.SetPercent(l_pow);
+        b_motor.SetPercent(b_pow);
+
+        //Sleep for input time
         Sleep(time);
 
+        //Stop the motors when time is reached
         r_motor.Stop();
         l_motor.Stop();
         b_motor.Stop();
-
    }
 
     /*
@@ -125,10 +161,38 @@ FEHServo flip_servo(FEHServo::Servo1);
         //Calculate angle of translation
         float angle = atan2(y_pos, x_pos);
 
+        //Initialize variables for motor power nd calculate
+        float r_pow, l_pow, b_pow;
+        r_pow = -power * sin(onePIsix - angle);
+        l_pow = -power * sin(fivePIsix - angle);
+        b_pow = -power * sin(threePItwo - angle);
+
+        //Adjust right motor power
+        if (r_pow > 0) {
+            r_pow = r_pow + 5;
+        }
+        else if (r_pow < 0) {
+            r_pow = r_pow - 5;
+        }
+        //Adjust left motor power
+        if (l_pow > 0) {
+            l_pow = l_pow + 5;
+        }
+        else if (l_pow < 0) {
+            l_pow = l_pow - 5;
+        }
+        //Adjust back motor power
+        if (b_pow > 0) {
+            b_pow = b_pow + 5;
+        }
+        else if (b_pow < 0) {
+            b_pow = b_pow - 5;
+        }
+
         //Set motor powers according to angle
-        r_motor.SetPercent(-power * sin(onePIsix - angle));
-        l_motor.SetPercent(-power * sin(fivePIsix - angle));
-        b_motor.SetPercent(-power * sin(threePItwo - angle));
+        r_motor.SetPercent(r_pow);
+        l_motor.SetPercent(l_pow);
+        b_motor.SetPercent(b_pow);
 
         //Initialize boolean values for encoders
         bool r_done = false;
@@ -142,20 +206,7 @@ FEHServo flip_servo(FEHServo::Servo1);
             r_done = (r_encoder.Counts() >= (countsperinch * distance * fabs(sin(onePIsix - angle))));
             l_done = (l_encoder.Counts() >= (countsperinch * distance * fabs(sin(fivePIsix - angle))));
             b_done = (b_encoder.Counts() >= (countsperinch * distance * fabs(sin(threePItwo - angle))));
-
-            //Set boolean values to true if motors are going to get stuck
-            
-            if (fabs(-power * sin(onePIsix - angle)) < 7) {
-                r_done = true;
-            }
-            if (fabs(-power * sin(fivePIsix - angle)) < 7) {
-                l_done = true;
-            }
-            if (fabs(-power * sin(threePItwo - angle)) < 7) {
-                b_done = true;
-            }
     
-
             //Stop the motors when states are met
             if (r_done) {
                 r_motor.Stop();
@@ -171,7 +222,7 @@ FEHServo flip_servo(FEHServo::Servo1);
 
     /*
     The TranslateWithRPS_X function is used to translate the robot to an exact horizontal position without changing its 
-    current vertical position. 
+    current vertical position. This should not need to be used in the final run. 
     */
     void TranslateWithRPS_X (float end_x_pos, int power) {
 
@@ -183,7 +234,7 @@ FEHServo flip_servo(FEHServo::Servo1);
 
     /*
     The TranslateWithRPS_Y function is used to translate the robot to an exact vertical position without changing its 
-    current horizontal position.
+    current horizontal position. This should not need to be used in the final run. 
     */
     void TranslateWithRPS_Y (float end_y_pos, int power) {
 
@@ -207,40 +258,9 @@ FEHServo flip_servo(FEHServo::Servo1);
         //Use RPS to calculate distance to a point
         float current_x_pos = RPS.X();
         float current_y_pos = RPS.Y();
-        float distance = sqrt(pow(x_pos - current_x_pos,2) + pow(y_pos - current_y_pos, 2));
 
-        //Calculate angle of translation
-        float angle = atan2(y_pos - current_y_pos, x_pos - current_x_pos);
-
-        //Set motor powers according to angle
-        r_motor.SetPercent(-power * sin(onePIsix - angle));
-        l_motor.SetPercent(-power * sin(fivePIsix - angle));
-        b_motor.SetPercent(-power * sin(threePItwo - angle));
-
-        //Initialize boolean values for encoders
-        bool r_done = false;
-        bool l_done = false;
-        bool b_done = false;
-
-        //Use Encoders to run the motors until reaching final point
-        while (!r_done || !l_done || !b_done) {
-            //Set states to stop the motors
-            //const float countsperinch = 0.866 * 40.4890175226 * 0.9523; //0.9523 accounts for going too far
-            r_done = (r_encoder.Counts() >= (countsperinch * distance * sin(onePIsix - angle)));
-            l_done = (l_encoder.Counts() >= (countsperinch * distance * sin(fivePIsix - angle)));
-            b_done = (b_encoder.Counts() >= (countsperinch * distance * sin(threePItwo - angle)));
-
-            //Stop the motors when states are met
-            if (r_done) {
-                r_motor.Stop();
-            }
-            if (l_done) {
-                l_motor.Stop();
-            }
-            if (b_done) {
-                b_motor.Stop();
-            }
-        }
+        //Call the encoder movement function using RPS values
+        TranslateWithEncoders((x_pos - current_x_pos), (y_pos - current_y_pos), power);
     }
 
     /*
@@ -388,8 +408,6 @@ void RpsGoto(float x, float y, float heading){
 
 int main(void)
 {   
-    
-
 /* THIRD PERFRMANCE TEST
     //initialize RPS
     RPS.InitializeTouchMenu();
