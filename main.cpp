@@ -259,10 +259,16 @@ FEHServo flip_servo(FEHServo::Servo1);
         b_encoder.ResetCounts();
 
         //Use RPS to calculate distance to a point
-        float current_x_pos = RPS.X();
-        float current_y_pos = RPS.Y();
-        float current_heading = (90 - RPS.Heading()) * M_PI / 90;
+        float current_x_pos = -3;
+        float current_y_pos = -3;
+        float current_heading = -3;
+        while(current_x_pos < 0 || current_y_pos < 0 || current_heading < 0){
+            current_x_pos = RPS.X();
+            current_y_pos = RPS.Y();
+            current_heading = (90 - RPS.Heading()) * M_PI / 180;
+        }
 
+        //calculate the distance to travel in x and y
         float x_dif = x_pos - current_x_pos;
         float y_dif = y_pos - current_y_pos;
 
@@ -282,7 +288,7 @@ FEHServo flip_servo(FEHServo::Servo1);
         LCD.WriteAt("y_adjusted:",0,80);
         LCD.WriteAt(y_adjusted,100,80);
 
-        //Call the encoder movement function using RPS values
+        //Call the encoder movement function using adjusted RPS values
         TranslateWithEncoders(x_adjusted, y_adjusted, power);
     }
 
@@ -367,9 +373,13 @@ FEHServo flip_servo(FEHServo::Servo1);
     input angle. 
     */
     void TurnWithRPS(float CourseAngle, int power) {
-        TurnWithEncoders(CourseAngle - RPS.Heading(), power);
-        Sleep(0.5);
-        TurnWithEncoders(CourseAngle - RPS.Heading(), power);
+        float current_heading = -3;
+        //Loop until a valid RPS value is given
+        while(current_heading < 0){
+            current_heading = RPS.Heading();
+        }
+
+        TurnWithEncoders(CourseAngle - current_heading, power);
     }
 
     void PrintRPS () {
@@ -383,36 +393,36 @@ FEHServo flip_servo(FEHServo::Servo1);
     }
 
 /*
-* Takes a coordinate on the robot course and moves the robot there in a straight line
-* Turns at 65% of the way there
+* Takes a coordinate (x, y, angle) on the robot course and moves the robot there in a straight line
+* Turns at 65% of the way to the final point
 */
 void RpsGoto(float x, float y, float heading){
 
     const float sleepTime = 0.2; //Time to sleep between movements so that RPS can update
     const float turnAtPercent = 0.65; //What percentage completion to stop and turn at
 
-    float currentHeading = RPS.Heading();
+    float currentHeading = RPS.Heading()*M_PI/180;
     //Travel 65% to the point //!This assumes that rps.heading() = 0 when the robot is facing towards +y (upwards)
-    TranslateWithEncoders((x-RPS.X()) * turnAtPercent * cos(currentHeading), (y-RPS.Y()) * turnAtPercent * sin(currentHeading), 35);
+    TranslateWithRPS(x * turnAtPercent, y * turnAtPercent, 35);
     Sleep(sleepTime); //Wait so that RPS can update
     
     //Turn roughly to the angle
-    currentHeading = RPS.Heading(); //update heading
+    currentHeading = RPS.Heading()*M_PI/180; //update heading
     TurnWithEncoders(heading-currentHeading, 35);
     Sleep(sleepTime);
 
     //Travel the rest of the way to the point at a slower speed 
-    currentHeading = RPS.Heading(); //update heading
-    TranslateWithEncoders((x-RPS.X()) * cos(currentHeading), (y-RPS.Y()) * sin(currentHeading), 25);
+    currentHeading = RPS.Heading()*M_PI/180; //update heading
+    TranslateWithRPS(x, y, 25);
     Sleep(sleepTime);
 
     //Rotate again at a lower speed 
-    currentHeading = RPS.Heading(); //update heading
+    currentHeading = RPS.Heading()*M_PI/180; //update heading
     TurnWithEncoders(heading-currentHeading, 15);
     Sleep(sleepTime);
 
     //Translate again at a lower seed
-    currentHeading = RPS.Heading(); //update heading
+    currentHeading = RPS.Heading()*M_PI/180; //update heading
     TranslateWithEncoders((x-RPS.X()) * cos(currentHeading), (y-RPS.Y()) * sin(currentHeading), 15);
 }
 
@@ -422,7 +432,7 @@ int main(void)
     //Calibrate the servos
     flip_servo.SetMax(2405);
     flip_servo.SetMin(520);
-    arm_servo.SetMax(2407);
+    arm_servo.SetMax(2390);
     arm_servo.SetMin(571);
 
     //Set the servos to 0 at the beginning of run
