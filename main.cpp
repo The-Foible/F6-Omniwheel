@@ -151,6 +151,7 @@ FEHServo flip_servo(FEHServo::Servo1);
     */
     void TranslateWithEncoders(float x_pos, float y_pos, int power) {
         const float rotation_correction_factor = -0.0065; //Tuning constant to make the robot translate straight. larger is stronger
+        // const float rotation_correction_factor = -0.02; //Tuning constant to make the robot translate straight. larger is stronger
 
         //Reset encoders
         r_encoder.ResetCounts();
@@ -262,7 +263,7 @@ FEHServo flip_servo(FEHServo::Servo1);
         float current_x_pos = -3;
         float current_y_pos = -3;
         float current_heading = -3;
-        while(current_x_pos < 0 || current_y_pos < 0 || current_heading < 0){
+        while(current_x_pos < 0 || current_y_pos < 0){
             current_x_pos = RPS.X();
             current_y_pos = RPS.Y();
             current_heading = (90 - RPS.Heading()) * M_PI / 180;
@@ -279,14 +280,20 @@ FEHServo flip_servo(FEHServo::Servo1);
         LCD.Clear();
         LCD.WriteAt("heading:",0,0);
         LCD.WriteAt(current_heading,100,0);
-        LCD.WriteAt("x_dif:",0,20);
-        LCD.WriteAt(x_dif,100,20);
-        LCD.WriteAt("y_dif:",0,40);
-        LCD.WriteAt(y_dif,100,40);
-        LCD.WriteAt("x_adjusted:",0,60);
-        LCD.WriteAt(x_adjusted,100,60);
-        LCD.WriteAt("y_adjusted:",0,80);
-        LCD.WriteAt(y_adjusted,100,80);
+        LCD.WriteAt("x:",0,20);
+        LCD.WriteAt(current_x_pos,100,20);
+        LCD.WriteAt("y:",0,40);
+        LCD.WriteAt(current_y_pos,100,40);
+        LCD.WriteAt("x_dif:",0,60);
+        LCD.WriteAt(x_dif,100,60);
+        LCD.WriteAt("y_dif:",0,80);
+        LCD.WriteAt(y_dif,100,80);
+        LCD.WriteAt("x_adjusted:",0,100);
+        LCD.WriteAt(x_adjusted,100,100);
+        LCD.WriteAt("y_adjusted:",0,120);
+        LCD.WriteAt(y_adjusted,100,120);
+        LCD.WriteAt("heading (deg):",0,140);
+        LCD.WriteAt(current_heading*180/M_PI,100,140);
 
         //Call the encoder movement function using adjusted RPS values
         TranslateWithEncoders(x_adjusted, y_adjusted, power);
@@ -442,19 +449,25 @@ int main(void)
     //initialize RPS
     RPS.InitializeTouchMenu();
 
+    while(1){
+    TranslateWithRPS(18,18,25);
+    Sleep(4.0);
+    }
+    return 0;
+
     //Call function to wait for the red light to turn on
     while(!GetLightColor());
     Sleep(0.5);
 
+
+/* FOURTH PERFORMANCE TEST
     //Move to the base of the ramp
-    //TranslateWithEncoders(0,13.5,25);
-    TranslateWithRPS(18, 18, 25);
+    TranslateWithEncoders(0,13.5,25);
+    //TranslateWithRPS(18, 18, 25);
     Sleep(0.5);
-    Sleep(5.0); 
 
     //Turn towards the ramp
     TurnWithRPS(270, 25);
-    PrintRPS();
     Sleep(0.5);
 
     //Move up the ramp
@@ -487,15 +500,16 @@ int main(void)
 
     //Move forward to the levers
     Sleep(0.5);
-    TranslateWithEncoders(0,-6,20);
+    TranslateWithEncoders(0,-6.5,20);
+    Sleep(0.5);
     
     //Flip the correct lever down
-    MoveArmServo(85);
+    MoveArmServo(80);
     Sleep(0.5);
 
     //Back away from the lever
     TranslateWithEncoders(0, 3, 20);
-    Sleep(0.5);
+    Sleep(7.0);
 
     //Move Servo down
     MoveArmServo(45);
@@ -510,15 +524,30 @@ int main(void)
     Sleep(0.5);
     
     //Move to the ramp
+    TranslateWithEncoders(0,7,25);
+    Sleep(0.5);
+    TurnWithRPS(90,25);
+    Sleep(0.5);
+    TranslateWithRPS(17, 42, 25);
+    Sleep(0.5);
+    TurnWithRPS(90,25);
+    Sleep(0.5);
+    MoveArmServo(180);
+    Sleep(0.5);
 
     //Go down the ramp
+    TranslateWithEncoders(0, -12, 25);
+    Sleep(0.5);
 
     //Travel to starting position
+    TranslateWithRPS(18, 18, 25);
+    Sleep(0.5);
+    TurnWithRPS(135, 25);
+    Sleep(0.5);
 
     //Press final button
-
-    
-
+    TranslateWithTime(5.0, 15, 0, -1);
+*/
     
 /* THIRD PERFRMANCE TEST
     //initialize RPS
@@ -641,3 +670,4 @@ int main(void)
 */
 
 }
+
