@@ -6,9 +6,8 @@
 #include <FEHServo.h>
 #include <FEHUtility.h>
 #include <FEHSD.h>
-#include <math.h>
-
 #define _USE_MATH_DEFINES //Use M_PI
+#include <math.h>
 
 #define fivePIsix 2.61799387799
 #define threePItwo 4.71238898038
@@ -110,24 +109,24 @@ FEHServo flip_servo(FEHServo::Servo1);
 
         //Adjust right motor power
         if (r_pow > 0) {
-            r_pow = r_pow + 5;
+            r_pow = r_pow + 8;
         }
         else if (r_pow < 0) {
-            r_pow = r_pow - 5;
+            r_pow = r_pow - 8;
         }
         //Adjust left motor power
         if (l_pow > 0) {
-            l_pow = l_pow + 5;
+            l_pow = l_pow + 8;
         }
         else if (l_pow < 0) {
-            l_pow = l_pow - 5;
+            l_pow = l_pow - 8;
         }
         //Adjust back motor power
         if (b_pow > 0) {
-            b_pow = b_pow + 5;
+            b_pow = b_pow + 8;
         }
         else if (b_pow < 0) {
-            b_pow = b_pow - 5;
+            b_pow = b_pow - 8;
         }
 
         //Set motor powers according to angle
