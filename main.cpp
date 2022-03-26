@@ -408,29 +408,24 @@ void RpsGoto(float x, float y, float heading){
     const float sleepTime = 0.2; //Time to sleep between movements so that RPS can update
     const float turnAtPercent = 0.65; //What percentage completion to stop and turn at
 
-    float currentHeading = RPS.Heading()*M_PI/180;
     //Travel 65% to the point //!This assumes that rps.heading() = 0 when the robot is facing towards +y (upwards)
     TranslateWithRPS(x * turnAtPercent, y * turnAtPercent, 35);
     Sleep(sleepTime); //Wait so that RPS can update
     
     //Turn roughly to the angle
-    currentHeading = RPS.Heading()*M_PI/180; //update heading
-    TurnWithEncoders(heading-currentHeading, 35);
+    TurnWithRPS(heading, 25);
     Sleep(sleepTime);
 
     //Travel the rest of the way to the point at a slower speed 
-    currentHeading = RPS.Heading()*M_PI/180; //update heading
     TranslateWithRPS(x, y, 25);
     Sleep(sleepTime);
 
-    //Rotate again at a lower speed 
-    currentHeading = RPS.Heading()*M_PI/180; //update heading
-    TurnWithEncoders(heading-currentHeading, 15);
+    //Rotate again 
+    TurnWithRPS(heading, 25);
     Sleep(sleepTime);
 
     //Translate again at a lower seed
-    currentHeading = RPS.Heading()*M_PI/180; //update heading
-    TranslateWithEncoders((x-RPS.X()) * cos(currentHeading), (y-RPS.Y()) * sin(currentHeading), 15);
+    TranslateWithRPS(x, y, 15);
 }
 
 int main(void)
