@@ -486,23 +486,18 @@ int main(void)
 {   
 
     //Calibrate the servos
-    flip_servo.SetMax(2405);
+    flip_servo.SetMax(2350);
     flip_servo.SetMin(520);
-    arm_servo.SetMax(2390);
+    arm_servo.SetMax(2370);
     arm_servo.SetMin(571);
 
     //Set the servos to 0 at the beginning of run
     flip_servo.SetDegree(0);
+    flip_servo.Off(); //Turn the servo off until it's needed
     arm_servo.SetDegree(180);
     
     //initialize RPS
     RPS.InitializeTouchMenu();
-
-    while(1){
-    TranslateWithRPS(18,18,25);
-    Sleep(4.0);
-    }
-    return 0;
 
     //Call function to wait for the red light to turn on
     while(!GetLightColor());
@@ -747,22 +742,22 @@ int main(void)
     //* Encoder turn calibration end
 
     //* Encoder translation calibration start
-    TranslateWithEncoders(-2.7, -17, 25);
-    TranslateWithEncoders(20*cos(0), 20*sin(0), 25);
-    TranslateWithEncoders(20*cos(M_PI/12), 20*sin(M_PI/12), 25);
-    //Figure 8 code
-    while(1){
-    for(float a = 0; a < M_PI; a+=M_PI/24){
-        TranslateWithEncoders(cos(a), sin(a), 20);
-    }
-    for(float a = M_PI; a > -M_PI; a-=M_PI/24){
-        TranslateWithEncoders(cos(a), sin(a), 20);
-    }
-        for(float a = M_PI; a < 2*M_PI; a+=M_PI/24){
-        TranslateWithEncoders(cos(a), sin(a), 20);
-    }
-    }
-    return 0;
+    // TranslateWithEncoders(-2.7, -17, 25);
+    // TranslateWithEncoders(20*cos(0), 20*sin(0), 25);
+    // TranslateWithEncoders(20*cos(M_PI/12), 20*sin(M_PI/12), 25);
+    // //Figure 8 code
+    // while(1){
+    // for(float a = 0; a < M_PI; a+=M_PI/24){
+    //     TranslateWithEncoders(cos(a), sin(a), 20);
+    // }
+    // for(float a = M_PI; a > -M_PI; a-=M_PI/24){
+    //     TranslateWithEncoders(cos(a), sin(a), 20);
+    // }
+    //     for(float a = M_PI; a < 2*M_PI; a+=M_PI/24){
+    //     TranslateWithEncoders(cos(a), sin(a), 20);
+    // }
+    // }
+    // return 0;
     //* Encoder translation calibration end
 
 }
