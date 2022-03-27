@@ -374,6 +374,62 @@ FEHServo flip_servo(FEHServo::Servo1);
     }
 
     /*
+    The TurnCalibrate function logs relevant data about robot turns so that the motor power can be adjusted for accurate turning.
+    */
+    void TurnCalibrate(float angle, float power, FEHFile *sd) {
+
+        //Reset encoders
+        r_encoder.ResetCounts();
+        l_encoder.ResetCounts();
+        b_encoder.ResetCounts();
+
+        float initial_RPS_heading = RPS.Heading();
+
+        //Tuning constants (experimentally calculated)
+        const float constant_distance_mod = 1.57; //How many more degrees to turn for a given angle //0.0 is no change
+        const float proportional_power_mod = -0.1555; //How much more or less to turn based on the power (linear) //0.0 is no change
+        const float quadratic_power_mod = -0.0027; //A quadratic term affecting more or less degrees to turn based on power (due to rotational kinetic energy increasing at the square of velocity) //0.0 is no change
+        // const float constant_distance_mod = 0.0; //How many more degrees to turn for a given angle //0.0 is no change
+        // const float proportional_power_mod = 0.0; //How much more or less to turn based on the power (linear) //0.0 is no change
+        // const float quadratic_power_mod = 0.0; //A quadratic term affecting more or less degrees to turn based on power (due to rotational kinetic energy increasing at the square of velocity) //0.0 is no change
+        //const float countsperinch = 40.4890175226;
+        //diameter of robot = 7.54093496 inch
+        //circumference of robot = 23.6905458715 inches
+        //counts for a full rotation = 959.206926911
+        //const float countsPerDegree = 2.66446368586;
+        const float countsPerDegree = 2.66446368586;
+        
+        //Calculate goal number of encoder steps
+        int target_encoder_counts = ((fabs(angle) + power * power * quadratic_power_mod + power * proportional_power_mod + constant_distance_mod) * countsPerDegree);
+
+        //Turn clockwise if angle is negative
+        if (angle < 0) {
+            r_motor.SetPercent(-power);
+            l_motor.SetPercent(-power);
+            b_motor.SetPercent(-power);
+        }
+        //Turn counterclockwise if angle is positive
+        else {
+            r_motor.SetPercent(power);
+            l_motor.SetPercent(power);
+            b_motor.SetPercent(power);
+        }
+
+        //Use b_encoder to determine when to stop turning (the encoder counts were experimentally tested to be extremely similar)
+        while (b_encoder.Counts() <= target_encoder_counts);
+
+
+        //Stop the motors
+        r_motor.SetPercent(0);
+        l_motor.SetPercent(0);
+        b_motor.SetPercent(0);
+
+        Sleep(0.5);
+
+        SD.FPrintf(sd, "%f, %f, %d, %d, %d, %d, %d, %f\n", power, angle, (int) (fabs(angle) * countsPerDegree), target_encoder_counts, b_encoder.Counts(), r_encoder.Counts(), l_encoder.Counts(), initial_RPS_heading - RPS.Heading());
+    }
+
+    /*
     The TurnWithRPS function takes in an angle in degrees, relative to the course, and a motor power. It then uses RPS to 
     determine the current heading of the robot, which is then used to find how huch farther the robot must turn to reach the 
     input angle. 
@@ -662,6 +718,34 @@ int main(void)
     TranslateWithEncoders(0,24,25);
     Sleep(0.5);
 */
+
+    //* Encoder turn calibration start
+
+    // FEHFile *sd = SD.FOpen("turn.csv", "w");
+    // SD.FPrintf(sd, "power, target angle, target eSteps, modified eSteps, experimental eSteps B, experimental eSteps R, experimental eSteps L, calculated angle (aprox)\n");
+
+    // LCD.SetFontColor(BLACK);
+    // for(int i = 10; i <= 40; i+=5){
+    //     for(int j = -180; j<= 180; j+= 90){
+    //             LCD.Clear(WHITE);
+    //             LCD.WriteAt("pow:",0,0);
+    //             LCD.WriteAt("ang:",0,20);
+    //             LCD.WriteAt(i,50,0);
+    //             LCD.WriteAt(j,50,20);
+    //         if(j!=0){
+    //             TurnCalibrate(j, i, sd);
+    //         }
+    //     }
+    // }
+
+    // SD.FClose(sd);
+
+    // LCD.Clear(WHITE);
+    // LCD.WriteLine("DONE");
+
+    // return 0;
+
+    //* Encoder turn calibration end
 
 }
 
