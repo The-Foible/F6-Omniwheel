@@ -149,8 +149,7 @@ FEHServo flip_servo(FEHServo::Servo1);
     determine the current position of the robot.
     */
     void TranslateWithEncoders(float x_pos, float y_pos, int power) {
-        const float rotation_correction_factor = -0.0065; //Tuning constant to make the robot translate straight. larger is stronger
-        // const float rotation_correction_factor = -0.02; //Tuning constant to make the robot translate straight. larger is stronger
+        const float rotation_correction_factor = -0.07; //Tuning constant to make the robot translate straight. larger is stronger
 
         //Reset encoders
         r_encoder.ResetCounts();
@@ -746,6 +745,25 @@ int main(void)
     // return 0;
 
     //* Encoder turn calibration end
+
+    //* Encoder translation calibration start
+    TranslateWithEncoders(-2.7, -17, 25);
+    TranslateWithEncoders(20*cos(0), 20*sin(0), 25);
+    TranslateWithEncoders(20*cos(M_PI/12), 20*sin(M_PI/12), 25);
+    //Figure 8 code
+    while(1){
+    for(float a = 0; a < M_PI; a+=M_PI/24){
+        TranslateWithEncoders(cos(a), sin(a), 20);
+    }
+    for(float a = M_PI; a > -M_PI; a-=M_PI/24){
+        TranslateWithEncoders(cos(a), sin(a), 20);
+    }
+        for(float a = M_PI; a < 2*M_PI; a+=M_PI/24){
+        TranslateWithEncoders(cos(a), sin(a), 20);
+    }
+    }
+    return 0;
+    //* Encoder translation calibration end
 
 }
 
