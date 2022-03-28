@@ -54,6 +54,7 @@ FEHServo flip_servo(FEHServo::Servo1);
                 //Write color to the screen
                 LCD.Clear();
                 LCD.WriteAt("Undetected",0,0);
+                LCD.WriteAt(RPS.Heading(),5,20);
             }
         }
     }
@@ -171,24 +172,24 @@ FEHServo flip_servo(FEHServo::Servo1);
 
         //Adjust right motor power
         if (r_pow > 0) {
-            r_pow = r_pow + 8;
+            r_pow = r_pow + 5;
         }
         else if (r_pow < 0) {
-            r_pow = r_pow - 8;
+            r_pow = r_pow - 5;
         }
         //Adjust left motor power
         if (l_pow > 0) {
-            l_pow = l_pow + 8;
+            l_pow = l_pow + 5;
         }
         else if (l_pow < 0) {
-            l_pow = l_pow - 8;
+            l_pow = l_pow - 5;
         }
         //Adjust back motor power
         if (b_pow > 0) {
-            b_pow = b_pow + 8;
+            b_pow = b_pow + 5;
         }
         else if (b_pow < 0) {
-            b_pow = b_pow - 8;
+            b_pow = b_pow - 5;
         }
 
         //Set motor powers according to angle
@@ -275,6 +276,7 @@ FEHServo flip_servo(FEHServo::Servo1);
         float x_adjusted = x_dif * cos(current_heading) - y_dif * sin(current_heading);
         float y_adjusted = x_dif * sin(current_heading) + y_dif * cos(current_heading);
 
+/*
         LCD.Clear();
         LCD.WriteAt("heading:",0,0);
         LCD.WriteAt(current_heading,100,0);
@@ -292,6 +294,7 @@ FEHServo flip_servo(FEHServo::Servo1);
         LCD.WriteAt(y_adjusted,100,120);
         LCD.WriteAt("heading (deg):",0,140);
         LCD.WriteAt(current_heading*180/M_PI,100,140);
+    */
 
         //Call the encoder movement function using adjusted RPS values
         TranslateWithEncoders(x_adjusted, y_adjusted, power);
@@ -385,12 +388,12 @@ FEHServo flip_servo(FEHServo::Servo1);
         float initial_RPS_heading = RPS.Heading();
 
         //Tuning constants (experimentally calculated)
-        const float constant_distance_mod = 1.57; //How many more degrees to turn for a given angle //0.0 is no change
-        const float proportional_power_mod = -0.1555; //How much more or less to turn based on the power (linear) //0.0 is no change
-        const float quadratic_power_mod = -0.0027; //A quadratic term affecting more or less degrees to turn based on power (due to rotational kinetic energy increasing at the square of velocity) //0.0 is no change
-        // const float constant_distance_mod = 0.0; //How many more degrees to turn for a given angle //0.0 is no change
-        // const float proportional_power_mod = 0.0; //How much more or less to turn based on the power (linear) //0.0 is no change
-        // const float quadratic_power_mod = 0.0; //A quadratic term affecting more or less degrees to turn based on power (due to rotational kinetic energy increasing at the square of velocity) //0.0 is no change
+        // const float constant_distance_mod = 1.57; //How many more degrees to turn for a given angle //0.0 is no change
+        // const float proportional_power_mod = -0.1555; //How much more or less to turn based on the power (linear) //0.0 is no change
+        // const float quadratic_power_mod = -0.0027; //A quadratic term affecting more or less degrees to turn based on power (due to rotational kinetic energy increasing at the square of velocity) //0.0 is no change
+        const float constant_distance_mod = 2.7; //How many more degrees to turn for a given angle //0.0 is no change
+        const float proportional_power_mod = -0.27; //How much more or less to turn based on the power (linear) //0.0 is no change
+        const float quadratic_power_mod = 0.0; //A quadratic term affecting more or less degrees to turn based on power (due to rotational kinetic energy increasing at the square of velocity) //0.0 is no change
         //const float countsperinch = 40.4890175226;
         //diameter of robot = 7.54093496 inch
         //circumference of robot = 23.6905458715 inches
@@ -425,7 +428,7 @@ FEHServo flip_servo(FEHServo::Servo1);
 
         Sleep(0.5);
 
-        SD.FPrintf(sd, "%f, %f, %d, %d, %d, %d, %d, %f\n", power, angle, (int) (fabs(angle) * countsPerDegree), target_encoder_counts, b_encoder.Counts(), r_encoder.Counts(), l_encoder.Counts(), initial_RPS_heading - RPS.Heading());
+        SD.FPrintf(sd, "%f, %f, %d, %d, %d, %d, %d, %f\n", power, angle, (int) (fabs(angle) * countsPerDegree), target_encoder_counts, b_encoder.Counts(), r_encoder.Counts(), l_encoder.Counts(), fmod(RPS.Heading()-initial_RPS_heading+360, 360));
     }
 
     /*
@@ -443,6 +446,9 @@ FEHServo flip_servo(FEHServo::Servo1);
         TurnWithEncoders(CourseAngle - current_heading, power);
     }
 
+    /*
+    The PrintRPS function prints all RPS outputs to the screen so that they can be called in other functions.
+    */
     void PrintRPS () {
         LCD.Clear();
         LCD.WriteAt("x = ", 0, 0);
@@ -499,9 +505,133 @@ int main(void)
     //initialize RPS
     RPS.InitializeTouchMenu();
 
-    //Call function to wait for the red light to turn on
+    //* Encoder turn calibration start
+
+    // FEHFile *sd = SD.FOpen("turn.csv", "w");
+    // SD.FPrintf(sd, "power, target angle, target eSteps, modified eSteps, experimental eSteps B, experimental eSteps R, experimental eSteps L, calculated angle (aprox)\n");
+
+    // TurnCalibrate(90, 25, sd);
+    // TurnCalibrate(-90, 25, sd);
+
+    // // LCD.SetFontColor(BLACK);
+    // // for(int i = 10; i <= 40; i+=5){
+    // //     for(int j = -180; j<= 180; j+= 90){
+    // //             LCD.Clear(WHITE);
+    // //             LCD.WriteAt("pow:",0,0);
+    // //             LCD.WriteAt("ang:",0,20);
+    // //             LCD.WriteAt(i,50,0);
+    // //             LCD.WriteAt(j,50,20);
+    // //         if(j!=0){
+    // //             TurnCalibrate(j, i, sd);
+    // //         }
+    // //     }
+    // // }
+
+    // SD.FClose(sd);
+
+    // LCD.Clear(WHITE);
+    // LCD.WriteLine("DONE");
+
+    // return 0;
+    
+
+    //* Encoder turn calibration end
+
+    // Get x and y values for jukebox button
+    int timeCount = 0;
+    while (timeCount < 5) {
+        PrintRPS();
+        Sleep(1.0);
+        timeCount++;
+    }
+    float jukeboxX, jukeboxY;
+    jukeboxX = RPS.X();
+    jukeboxY = RPS.Y();
+
     while(!GetLightColor());
     Sleep(0.5);
+
+    //move to jukebox light
+    //TranslateWithRPS(10.3,15,25);
+    TranslateWithRPS(16,15.2,25);
+    Sleep(0.25);
+
+    //move closer to jukebox light
+    TranslateWithRPS(jukeboxX,jukeboxY,25);
+    Sleep(0.5);
+    TranslateWithRPS(jukeboxX,jukeboxY,15);
+    Sleep(0.5);
+    
+    //get the light color
+    if(GetLightColor()) {
+        //RED
+        TurnWithRPS(180,25);
+        Sleep(0.25);
+        TranslateWithRPS(7.4,12,25);
+        Sleep(0.25);
+        TranslateWithTime(0.25,15,-1,0);
+
+    } else {
+        //BLUE
+        TurnWithRPS(180,25);
+        Sleep(0.25);
+        TranslateWithRPS(10.6,12,25);
+        Sleep(0.25);
+        TranslateWithTime(0.25,15,-1,0);
+    }
+
+    Sleep(3.0);
+    //Get RPS Values
+    while (1) {
+        PrintRPS();
+        Sleep(1.0);
+    }
+
+    //move up ramp
+
+    //determine correct ice cream lever
+
+    /*
+    LCD.Clear();
+    if (RPS.GetIceCream() == 0) {
+        //Move to the vanilla lever
+        LCD.Write("Vanilla");
+        TranslateWithRPS(15.3, 52.9, 25);
+        Sleep(0.5);
+        TurnWithRPS(315, 25);
+    }
+    else if (RPS.GetIceCream() == 1) {
+        //Move to the twist lever
+        LCD.Write("Twist");
+        TranslateWithRPS(18.3, 56, 25);
+        Sleep(0.5);
+        TurnWithRPS(315, 25);
+    }
+    else if (RPS.GetIceCream() == 2){
+        //Move to the chocolate lever
+        LCD.Write("Chocolate");
+        TranslateWithRPS(20.5, 59, 25);
+        Sleep(0.5);
+        TurnWithRPS(315, 25);
+    }
+
+    //Move forward to the levers
+    Sleep(0.5);
+    TranslateWithEncoders(0,-6.5,20);
+    Sleep(0.5);
+    
+    //Flip the correct lever down
+    MoveArmServo(80);
+    Sleep(0.5);
+    */
+
+    //go to sink
+
+    //dump tray in sink
+
+    //move back to correct lever
+
+    //flip up ice cream
 
 
 /* FOURTH PERFORMANCE TEST
