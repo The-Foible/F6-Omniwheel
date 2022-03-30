@@ -110,24 +110,24 @@ FEHServo flip_servo(FEHServo::Servo1);
 
         //Adjust right motor power
         if (r_pow > 0) {
-            r_pow = r_pow + 8;
+            r_pow = r_pow + 5;
         }
         else if (r_pow < 0) {
-            r_pow = r_pow - 8;
+            r_pow = r_pow - 5;
         }
         //Adjust left motor power
         if (l_pow > 0) {
-            l_pow = l_pow + 8;
+            l_pow = l_pow + 5;
         }
         else if (l_pow < 0) {
-            l_pow = l_pow - 8;
+            l_pow = l_pow - 5;
         }
         //Adjust back motor power
         if (b_pow > 0) {
-            b_pow = b_pow + 8;
+            b_pow = b_pow + 5;
         }
         else if (b_pow < 0) {
-            b_pow = b_pow - 8;
+            b_pow = b_pow - 5;
         }
 
         //Set motor powers according to angle
@@ -557,7 +557,7 @@ int main(void)
 
     //* Encoder turn calibration end
 
-    // Get x and y values for jukebox button
+ // Get x and y values for jukebox button
     int timeCount = 0;
     while (timeCount < 5) {
         PrintRPS();
@@ -599,6 +599,128 @@ int main(void)
         Sleep(0.25);
         TranslateWithTime(0.25,15,-1,0);
     }
+    Sleep(0.5);
+
+    //Move to the base of the ramp
+    TranslateWithRPS(18, 18, 25);
+    Sleep(0.25);
+
+    //Turn towards the ramp
+    TurnWithRPS(270, 25);
+    Sleep(0.25);
+    TurnWithRPS(270, 25);
+    Sleep(0.25);
+
+    //Move up the ramp
+    TranslateWithEncoders(0,-33,70);
+
+    Sleep(0.25);
+    TurnWithRPS(90, 25);
+    Sleep(0.25);
+    TurnWithRPS(90, 25);
+    Sleep(0.25);
+
+    //determine correct ice cream lever
+    LCD.Clear();
+    if (RPS.GetIceCream() == 0) {
+        //Move to the vanilla lever
+        LCD.Write("Vanilla");
+        TranslateWithRPS(15.3, 52.9, 25);
+        Sleep(0.25);
+    }
+    else if (RPS.GetIceCream() == 1) {
+        //Move to the twist lever
+        LCD.Write("Twist");
+        TranslateWithRPS(18.3, 56, 25);
+        Sleep(0.25);
+    }
+    else if (RPS.GetIceCream() == 2){
+        //Move to the chocolate lever
+        LCD.Write("Chocolate");
+        TranslateWithRPS(20.5, 59, 25);
+        Sleep(0.25);
+    }
+
+    //Turn towards lever
+    TurnWithRPS(315, 25);
+    Sleep(0.25);
+
+    //Move forward to the levers
+    Sleep(0.5);
+    TranslateWithEncoders(0,-7,20);
+    Sleep(0.5);
+    
+    //Flip the correct lever down
+    MoveArmServo(70);
+    Sleep(0.5);
+
+    //Back off lever
+    TranslateWithEncoders(0,8,25);
+
+    //Move servo back up
+    MoveArmServo(170);
+
+    //go to sink
+    TurnWithRPS(90,25);
+    Sleep(0.25);
+    TurnWithRPS(90,25);
+    Sleep(0.25);
+    TranslateWithRPS(9 ,49 ,25);
+    Sleep(0.25);
+    TranslateWithTime(0.5, 20, -1, 0);
+    TranslateWithTime(1.5, 20, 0, -1);
+
+    //dump tray in sink
+    Sleep(0.25);
+    MoveArmServo(40);
+    Sleep(0.5);
+
+    //Move to middle of upper level
+    TranslateWithRPS(18,54,25);
+    Sleep(0.25);
+
+    //move back to correct lever
+    LCD.Clear();
+    if (RPS.GetIceCream() == 0) {
+        //Move to the vanilla lever
+        LCD.Write("Vanilla");
+        TranslateWithRPS(15.3, 52.9, 25);
+        Sleep(0.25);
+    }
+    else if (RPS.GetIceCream() == 1) {
+        //Move to the twist lever
+        LCD.Write("Twist");
+        TranslateWithRPS(18.3, 56, 25);
+        Sleep(0.25);
+    }
+    else if (RPS.GetIceCream() == 2){
+        //Move to the chocolate lever
+        LCD.Write("Chocolate");
+        TranslateWithRPS(20.5, 59, 25);
+        Sleep(0.25);
+    }
+
+    //Turn towards lever
+    TurnWithRPS(315, 25);
+    Sleep(0.25);
+    //Move forward to the levers
+    Sleep(0.5);
+    TranslateWithEncoders(0,-7.5,20);
+    Sleep(0.5);
+
+    //flip up ice cream up
+    MoveArmServo(85);
+
+    //Move away from ice cream
+    TranslateWithEncoders(0,-8,25);
+    Sleep(0.25);
+    TurnWithRPS(90,25);
+    MoveArmServo(0);
+
+    //Move to ticket
+    TranslateWithRPS(31.4,47.9,25);
+    Sleep(0.25);
+    TranslateWithTime(1.0,25,0,-1);
 
     Sleep(3.0);
     //Get RPS Values
@@ -606,52 +728,6 @@ int main(void)
         PrintRPS();
         Sleep(1.0);
     }
-
-    //move up ramp
-
-    //determine correct ice cream lever
-
-    /*
-    LCD.Clear();
-    if (RPS.GetIceCream() == 0) {
-        //Move to the vanilla lever
-        LCD.Write("Vanilla");
-        TranslateWithRPS(15.3, 52.9, 25);
-        Sleep(0.5);
-        TurnWithRPS(315, 25);
-    }
-    else if (RPS.GetIceCream() == 1) {
-        //Move to the twist lever
-        LCD.Write("Twist");
-        TranslateWithRPS(18.3, 56, 25);
-        Sleep(0.5);
-        TurnWithRPS(315, 25);
-    }
-    else if (RPS.GetIceCream() == 2){
-        //Move to the chocolate lever
-        LCD.Write("Chocolate");
-        TranslateWithRPS(20.5, 59, 25);
-        Sleep(0.5);
-        TurnWithRPS(315, 25);
-    }
-
-    //Move forward to the levers
-    Sleep(0.5);
-    TranslateWithEncoders(0,-6.5,20);
-    Sleep(0.5);
-    
-    //Flip the correct lever down
-    MoveArmServo(80);
-    Sleep(0.5);
-    */
-
-    //go to sink
-
-    //dump tray in sink
-
-    //move back to correct lever
-
-    //flip up ice cream
 
 
 /* FOURTH PERFORMANCE TEST
