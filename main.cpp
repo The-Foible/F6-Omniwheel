@@ -488,6 +488,26 @@ void RpsGoto(float x, float y, float heading){
     TranslateWithRPS(x, y, 15);
 }
 
+void MotorCalibration(FEHMotor m, DigitalEncoder e, char filename[]){
+    FEHFile *sd = SD.FOpen(filename);
+    SD.FPrintf(sd, "power, counts/s\n");
+    for(int p = -100; p <= 100; p+=5){
+        m.SetPercent(i);
+        Sleep(0.2);
+        e.ResetCounts();
+        Sleep(1.0);
+        SD.FPrintf(sd, "%d, %d\n", p, e.Counts());
+    }
+    m.SetPercent(0);
+    SD.FClose(sd);
+}
+
+// MotorCalibration(r_motor, r_encoder, RMCAL.csv);
+// Sleep(5.0);
+// MotorCalibration(l_motor, l_encoder, LMCAL.csv);
+// Sleep(5.0);
+// MotorCalibration(b_motor, b_encoder, BMCAL.csv);
+
 int main(void)
 {   
 
