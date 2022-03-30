@@ -646,16 +646,15 @@ int main(void)
     Sleep(0.25);
 
     //Move forward to the levers
-    Sleep(0.5);
-    TranslateWithEncoders(0,-7,20);
+    TranslateWithEncoders(0,-6.5,20);
     Sleep(0.5);
     
     //Flip the correct lever down
-    MoveArmServo(70);
+    MoveArmServo(75);
     Sleep(0.5);
 
     //Back off lever
-    TranslateWithEncoders(0,8,25);
+    TranslateWithEncoders(0,7.5,25);
 
     //Move servo back up
     MoveArmServo(170);
