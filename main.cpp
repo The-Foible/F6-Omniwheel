@@ -111,6 +111,7 @@ FEHServo flip_servo(FEHServo::Servo1);
             if((TimeNow() - start_time) > 5.0 ){
                 return 1;
             }
+            Sleep(10);
         }
 
         //Populate the value of any fields given
@@ -237,6 +238,9 @@ FEHServo flip_servo(FEHServo::Servo1);
         bool l_done = false;
         bool b_done = false;
 
+        //Initalize start time
+        float start_time = TimeNow();
+
         //Use Encoders to run the motors until reaching final point
         while (!r_done || !l_done || !b_done) {
             //Set states to stop the motors
@@ -254,6 +258,22 @@ FEHServo flip_servo(FEHServo::Servo1);
             }
             if (b_done) {
                 b_motor.Stop();
+            }
+
+            //If the robot takes longer than three seconds to translate, give it a temporary boost of power
+            if(TimeNow() - start_time > 3.0){
+                //Boost power
+                r_motor.SetPercent(r_pow * 1.5);
+                l_motor.SetPercent(l_pow * 1.5);
+                b_motor.SetPercent(b_pow * 1.5);
+                //For 100 ms
+                Sleep(0.1);
+                //Return power to normal value
+                r_motor.SetPercent(r_pow);
+                l_motor.SetPercent(l_pow);
+                b_motor.SetPercent(b_pow);
+                //Reset time so this doesn't loop
+                start_time = TimeNow();
             }
         }
     }
@@ -301,12 +321,10 @@ FEHServo flip_servo(FEHServo::Servo1);
         float start_time = TimeNow();
         //Loops until the robot is less than half an inch from the goal or 5 seconds have past
         while((hypot(x_pos - RPS.X(), y_pos - RPS.Y()) > 0.5) && (start_time-TimeNow() < 5.0 )){
-            LCD.WriteLine("Translating with RPS");
-            LCD.WriteLine((hypot(x_pos - RPS.X(), y_pos - RPS.Y())));
             //GetRPS(&current_x_pos, &current_y_pos, &current_heading);
             current_x_pos = RPS.X();
             current_y_pos = RPS.Y();
-            current_heading = RPS.Heading();
+            current_heading = (RPS.Heading()-90)*M_PI/180; //Convert to radians
         
             //calculate the distance to travel in x and y
             float x_dif = x_pos - current_x_pos;
@@ -316,31 +334,31 @@ FEHServo flip_servo(FEHServo::Servo1);
             float x_adjusted = x_dif * cos(current_heading) - y_dif * sin(current_heading);
             float y_adjusted = x_dif * sin(current_heading) + y_dif * cos(current_heading);
 
-    
             LCD.Clear();
-            LCD.WriteAt("heading:",0,0);
-            LCD.WriteAt(current_heading,100,0);
+            LCD.WriteAt("heading (rad):",0,0);
+            LCD.WriteAt(current_heading,180,0);
             LCD.WriteAt("x:",0,20);
-            LCD.WriteAt(current_x_pos,100,20);
+            LCD.WriteAt(current_x_pos,180,20);
             LCD.WriteAt("y:",0,40);
-            LCD.WriteAt(current_y_pos,100,40);
+            LCD.WriteAt(current_y_pos,180,40);
             LCD.WriteAt("x_dif:",0,60);
-            LCD.WriteAt(x_dif,100,60);
+            LCD.WriteAt(x_dif,180,60);
             LCD.WriteAt("y_dif:",0,80);
-            LCD.WriteAt(y_dif,100,80);
+            LCD.WriteAt(y_dif,180,80);
             LCD.WriteAt("x_adjusted:",0,100);
-            LCD.WriteAt(x_adjusted,100,100);
+            LCD.WriteAt(x_adjusted,120,100);
             LCD.WriteAt("y_adjusted:",0,120);
-            LCD.WriteAt(y_adjusted,100,120);
+            LCD.WriteAt(y_adjusted,120,120);
             LCD.WriteAt("heading (deg):",0,140);
-            LCD.WriteAt(current_heading*180/M_PI,100,140);
+            LCD.WriteAt(current_heading*180/M_PI,180,140);
+            LCD.WriteAt("distance from goal:",0,160);
+            LCD.WriteAt(current_heading*180/M_PI,200,160);
 
             //Call the encoder movement function using adjusted RPS values
             TranslateWithEncoders(x_adjusted, y_adjusted, power);
 
             Sleep(0.25);
         }
-        LCD.WriteLine("Done");
     }
 
     /*
@@ -491,13 +509,13 @@ FEHServo flip_servo(FEHServo::Servo1);
         float current_heading;
         //Loops until the robot is less than two degrees from the goal or 5 seconds have past
         while((fabs(angle - RPS.Heading()) > 2 ) && (start_time-TimeNow() < 5.0 )){
-            LCD.WriteLine("Turning with RPS");
-            LCD.WriteLine(fabs(angle - RPS.Heading()));
             //GetRPS(0, 0, &current_heading);
             current_heading = RPS.Heading();
             TurnWithEncoders(angle - current_heading, power);
+            //Use a lower power on all subsequent runs
+            power = 10;
+            //Wait for RPS to update
             Sleep(0.25);
-            LCD.WriteLine(fabs(angle - RPS.Heading()));
         }
     }
 
@@ -529,12 +547,6 @@ void MotorCalibration(FEHMotor m, DigitalEncoder e, char *filename){
     SD.FClose(sd);
 }
 
-// MotorCalibration(r_motor, r_encoder, RMCAL.csv);
-// Sleep(5.0);
-// MotorCalibration(l_motor, l_encoder, LMCAL.csv);
-// Sleep(5.0);
-// MotorCalibration(b_motor, b_encoder, BMCAL.csv);
-
 int main(void)
 {   
     
@@ -548,14 +560,6 @@ int main(void)
     flip_servo.SetDegree(0);
     flip_servo.Off(); //Turn the servo off until it's needed
     arm_servo.SetDegree(180);
-
-/*
-MotorCalibration(r_motor, r_encoder, "RMCAL.csv");
-Sleep(5.0);
-MotorCalibration(l_motor, l_encoder, "LMCAL.csv");
-Sleep(5.0);
-MotorCalibration(b_motor, b_encoder, "BMCAL.csv");
-*/
     
     //initialize RPS
     RPS.InitializeTouchMenu();
