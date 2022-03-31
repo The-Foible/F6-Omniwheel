@@ -83,14 +83,48 @@ FEHServo flip_servo(FEHServo::Servo1);
         }
 
         //Sleep for two seconds when servo reaches its highest position
-        Sleep(2.0);
+        Sleep(1.0);
 
         //Loop to move the servo negative one degree eah hundredth of a second
         while (degree > 0) {
             degree = degree - 1;
-            flip_servo.SetDegree(0);
+            flip_servo.SetDegree(degree);
             Sleep(10);
         }
+    }
+
+    //The GetRPS function populates the value pointed to by each POINTER argument with the relevant RPS value
+    //For any values you don't need for a use, populate the parameters with 0
+    //GetRPS(0, 0, &current_heading); //Gets heading and ignores X and Y positions
+    int GetRPS(float *x = 0, float *y = 0, float *heading = 0){
+        float start_time = TimeNow();
+        //Loop until RPS returns a non-error value
+        while(RPS.Heading() < 0){
+            //Specify the error value
+            if(RPS.Heading() == -1){
+                LCD.WriteLine("QR CODE NOT FOUND");
+            } else {
+                LCD.WriteLine("DEADZONE");
+            }
+
+            //Check how long it's been looping and break if it's more than 5s
+            if((TimeNow() - start_time) > 5.0 ){
+                return 1;
+            }
+        }
+
+        //Populate the value of any fields given
+        if(x != 0){
+            *x = RPS.X();
+        }
+        if(x != 0){
+            *y = RPS.Y();
+        }
+        if(x != 0){
+            *heading = RPS.Heading();
+        }
+
+        return 0;
     }
 
    /*
@@ -110,24 +144,24 @@ FEHServo flip_servo(FEHServo::Servo1);
 
         //Adjust right motor power
         if (r_pow > 0) {
-            r_pow = r_pow + 5;
+            r_pow = r_pow + 5.58;
         }
         else if (r_pow < 0) {
-            r_pow = r_pow - 5;
+            r_pow = r_pow - 8.03;
         }
         //Adjust left motor power
         if (l_pow > 0) {
-            l_pow = l_pow + 5;
+            l_pow = l_pow + 5.74;
         }
         else if (l_pow < 0) {
-            l_pow = l_pow - 5;
+            l_pow = l_pow - 6.56;
         }
         //Adjust back motor power
         if (b_pow > 0) {
-            b_pow = b_pow + 5;
+            b_pow = b_pow + 6.5;
         }
         else if (b_pow < 0) {
-            b_pow = b_pow - 5;
+            b_pow = b_pow - 8.9;
         }
 
         //Set motor powers according to angle
@@ -151,6 +185,7 @@ FEHServo flip_servo(FEHServo::Servo1);
     */
     void TranslateWithEncoders(float x_pos, float y_pos, int power) {
         const float rotation_correction_factor = -0.07; //Tuning constant to make the robot translate straight. larger is stronger
+        //const float rotation_correction_factor = 0.0; //Tuning constant to make the robot translate straight. larger is stronger
 
         //Reset encoders
         r_encoder.ResetCounts();
@@ -172,24 +207,24 @@ FEHServo flip_servo(FEHServo::Servo1);
 
         //Adjust right motor power
         if (r_pow > 0) {
-            r_pow = r_pow + 5;
+            r_pow = r_pow + 5.58;
         }
         else if (r_pow < 0) {
-            r_pow = r_pow - 5;
+            r_pow = r_pow - 8.03;
         }
         //Adjust left motor power
         if (l_pow > 0) {
-            l_pow = l_pow + 5;
+            l_pow = l_pow + 5.74;
         }
         else if (l_pow < 0) {
-            l_pow = l_pow - 5;
+            l_pow = l_pow - 6.56;
         }
         //Adjust back motor power
         if (b_pow > 0) {
-            b_pow = b_pow + 5;
+            b_pow = b_pow + 6.5;
         }
         else if (b_pow < 0) {
-            b_pow = b_pow - 5;
+            b_pow = b_pow - 8.90;
         }
 
         //Set motor powers according to angle
@@ -262,42 +297,50 @@ FEHServo flip_servo(FEHServo::Servo1);
         float current_x_pos = -3;
         float current_y_pos = -3;
         float current_heading = -3;
-        while(current_x_pos < 0 || current_y_pos < 0){
+
+        float start_time = TimeNow();
+        //Loops until the robot is less than half an inch from the goal or 5 seconds have past
+        while((hypot(x_pos - RPS.X(), y_pos - RPS.Y()) > 0.5) && (start_time-TimeNow() < 5.0 )){
+            LCD.WriteLine("Translating with RPS");
+            LCD.WriteLine((hypot(x_pos - RPS.X(), y_pos - RPS.Y())));
+            //GetRPS(&current_x_pos, &current_y_pos, &current_heading);
             current_x_pos = RPS.X();
             current_y_pos = RPS.Y();
-            current_heading = (90 - RPS.Heading()) * M_PI / 180;
+            current_heading = RPS.Heading();
+        
+            //calculate the distance to travel in x and y
+            float x_dif = x_pos - current_x_pos;
+            float y_dif = y_pos - current_y_pos;
+
+            //Rotate the translation vector based on the angle of the robot
+            float x_adjusted = x_dif * cos(current_heading) - y_dif * sin(current_heading);
+            float y_adjusted = x_dif * sin(current_heading) + y_dif * cos(current_heading);
+
+    
+            LCD.Clear();
+            LCD.WriteAt("heading:",0,0);
+            LCD.WriteAt(current_heading,100,0);
+            LCD.WriteAt("x:",0,20);
+            LCD.WriteAt(current_x_pos,100,20);
+            LCD.WriteAt("y:",0,40);
+            LCD.WriteAt(current_y_pos,100,40);
+            LCD.WriteAt("x_dif:",0,60);
+            LCD.WriteAt(x_dif,100,60);
+            LCD.WriteAt("y_dif:",0,80);
+            LCD.WriteAt(y_dif,100,80);
+            LCD.WriteAt("x_adjusted:",0,100);
+            LCD.WriteAt(x_adjusted,100,100);
+            LCD.WriteAt("y_adjusted:",0,120);
+            LCD.WriteAt(y_adjusted,100,120);
+            LCD.WriteAt("heading (deg):",0,140);
+            LCD.WriteAt(current_heading*180/M_PI,100,140);
+
+            //Call the encoder movement function using adjusted RPS values
+            TranslateWithEncoders(x_adjusted, y_adjusted, power);
+
+            Sleep(0.25);
         }
-
-        //calculate the distance to travel in x and y
-        float x_dif = x_pos - current_x_pos;
-        float y_dif = y_pos - current_y_pos;
-
-        //Rotate the translation vector based on the angle of the robot
-        float x_adjusted = x_dif * cos(current_heading) - y_dif * sin(current_heading);
-        float y_adjusted = x_dif * sin(current_heading) + y_dif * cos(current_heading);
-
-/*
-        LCD.Clear();
-        LCD.WriteAt("heading:",0,0);
-        LCD.WriteAt(current_heading,100,0);
-        LCD.WriteAt("x:",0,20);
-        LCD.WriteAt(current_x_pos,100,20);
-        LCD.WriteAt("y:",0,40);
-        LCD.WriteAt(current_y_pos,100,40);
-        LCD.WriteAt("x_dif:",0,60);
-        LCD.WriteAt(x_dif,100,60);
-        LCD.WriteAt("y_dif:",0,80);
-        LCD.WriteAt(y_dif,100,80);
-        LCD.WriteAt("x_adjusted:",0,100);
-        LCD.WriteAt(x_adjusted,100,100);
-        LCD.WriteAt("y_adjusted:",0,120);
-        LCD.WriteAt(y_adjusted,100,120);
-        LCD.WriteAt("heading (deg):",0,140);
-        LCD.WriteAt(current_heading*180/M_PI,100,140);
-    */
-
-        //Call the encoder movement function using adjusted RPS values
-        TranslateWithEncoders(x_adjusted, y_adjusted, power);
+        LCD.WriteLine("Done");
     }
 
     /*
@@ -345,13 +388,20 @@ FEHServo flip_servo(FEHServo::Servo1);
         r_encoder.ResetCounts();
         l_encoder.ResetCounts();
         b_encoder.ResetCounts();
+
+        angle = fmod(angle + 180.0, 360.0) - 180;
  
+        const float constant_distance_mod = 0.9; //How many more degrees to turn for a given angle //0.0 is no change
+        const float proportional_power_mod = -0.27; //How much more or less to turn based on the power (linear) //0.0 is no change
+        const float quadratic_power_mod = 0.0; //A quadratic term affecting more or less degrees to turn based on power (due to rotational kinetic energy increasing at the square of velocity) //0.0 is no change
         //const float countsperinch = 40.4890175226;
         //diameter of robot = 7.54093496 inch
         //circumference of robot = 23.6905458715 inches
         //counts for a full rotation = 959.206926911
-        //const float countsPerDegree = 2.66446368586;//0.9703504 accounts for overturning
-        const float countsPerDegree = 2.66446368586 * (0.95);//0.95 accounts for overturning
+        //const float countsPerDegree = 2.66446368586;
+        const float countsPerDegree = 2.66446368586;
+
+        int target_encoder_counts = ((fabs(angle) + power * power * quadratic_power_mod + power * proportional_power_mod + constant_distance_mod) * countsPerDegree);
        
         //Turn clockwise if angle is negative
         if (angle < 0) {
@@ -367,7 +417,7 @@ FEHServo flip_servo(FEHServo::Servo1);
         }
        
         //Use r_encoder to determine when to stop turning (the encoder counts were experimentally tested to be extremely similar)
-        while (r_encoder.Counts() < (countsPerDegree * fabs(angle) - 12 ));
+        while (r_encoder.Counts() <= target_encoder_counts);
 
         //Stop the motors
         r_motor.SetPercent(0);
@@ -391,7 +441,7 @@ FEHServo flip_servo(FEHServo::Servo1);
         // const float constant_distance_mod = 1.57; //How many more degrees to turn for a given angle //0.0 is no change
         // const float proportional_power_mod = -0.1555; //How much more or less to turn based on the power (linear) //0.0 is no change
         // const float quadratic_power_mod = -0.0027; //A quadratic term affecting more or less degrees to turn based on power (due to rotational kinetic energy increasing at the square of velocity) //0.0 is no change
-        const float constant_distance_mod = 2.7; //How many more degrees to turn for a given angle //0.0 is no change
+        const float constant_distance_mod = 0.9; //How many more degrees to turn for a given angle //0.0 is no change
         const float proportional_power_mod = -0.27; //How much more or less to turn based on the power (linear) //0.0 is no change
         const float quadratic_power_mod = 0.0; //A quadratic term affecting more or less degrees to turn based on power (due to rotational kinetic energy increasing at the square of velocity) //0.0 is no change
         //const float countsperinch = 40.4890175226;
@@ -428,7 +478,7 @@ FEHServo flip_servo(FEHServo::Servo1);
 
         Sleep(0.5);
 
-        SD.FPrintf(sd, "%f, %f, %d, %d, %d, %d, %d, %f\n", power, angle, (int) (fabs(angle) * countsPerDegree), target_encoder_counts, b_encoder.Counts(), r_encoder.Counts(), l_encoder.Counts(), fmod(RPS.Heading()-initial_RPS_heading+360, 360));
+        SD.FPrintf(sd, "%f, %f, %d, %d, %d, %d, %d, %f, %f, %f\n", power, angle, (int) (fabs(angle) * countsPerDegree), target_encoder_counts, b_encoder.Counts(), r_encoder.Counts(), l_encoder.Counts(), initial_RPS_heading, RPS.Heading(), fmod(RPS.Heading()-initial_RPS_heading+360, 360));
     }
 
     /*
@@ -436,14 +486,19 @@ FEHServo flip_servo(FEHServo::Servo1);
     determine the current heading of the robot, which is then used to find how huch farther the robot must turn to reach the 
     input angle. 
     */
-    void TurnWithRPS(float CourseAngle, int power) {
-        float current_heading = -3;
-        //Loop until a valid RPS value is given
-        while(current_heading < 0){
+    void TurnWithRPS(float angle, int power) {
+        float start_time = TimeNow();
+        float current_heading;
+        //Loops until the robot is less than two degrees from the goal or 5 seconds have past
+        while((fabs(angle - RPS.Heading()) > 2 ) && (start_time-TimeNow() < 5.0 )){
+            LCD.WriteLine("Turning with RPS");
+            LCD.WriteLine(fabs(angle - RPS.Heading()));
+            //GetRPS(0, 0, &current_heading);
             current_heading = RPS.Heading();
+            TurnWithEncoders(angle - current_heading, power);
+            Sleep(0.25);
+            LCD.WriteLine(fabs(angle - RPS.Heading()));
         }
-
-        TurnWithEncoders(CourseAngle - current_heading, power);
     }
 
     /*
@@ -456,47 +511,19 @@ FEHServo flip_servo(FEHServo::Servo1);
         LCD.WriteAt("y = ", 0, 20);
         LCD.WriteAt(RPS.Y(), 30, 20);
         LCD.WriteAt("angle = ", 0, 40);
-        LCD.WriteAt(RPS.Heading(), 30, 40);
+        LCD.WriteAt(RPS.Heading(), 50, 40);
     }
 
-/*
-* Takes a coordinate (x, y, angle) on the robot course and moves the robot there in a straight line
-* Turns at 65% of the way to the final point
-*/
-void RpsGoto(float x, float y, float heading){
 
-    const float sleepTime = 0.2; //Time to sleep between movements so that RPS can update
-    const float turnAtPercent = 0.65; //What percentage completion to stop and turn at
-
-    //Travel 65% to the point //!This assumes that rps.heading() = 0 when the robot is facing towards +y (upwards)
-    TranslateWithRPS(x * turnAtPercent, y * turnAtPercent, 35);
-    Sleep(sleepTime); //Wait so that RPS can update
-    
-    //Turn roughly to the angle
-    TurnWithRPS(heading, 25);
-    Sleep(sleepTime);
-
-    //Travel the rest of the way to the point at a slower speed 
-    TranslateWithRPS(x, y, 25);
-    Sleep(sleepTime);
-
-    //Rotate again 
-    TurnWithRPS(heading, 25);
-    Sleep(sleepTime);
-
-    //Translate again at a lower seed
-    TranslateWithRPS(x, y, 15);
-}
-
-void MotorCalibration(FEHMotor m, DigitalEncoder e, char filename[]){
-    FEHFile *sd = SD.FOpen(filename);
+void MotorCalibration(FEHMotor m, DigitalEncoder e, char *filename){
+    FEHFile *sd = SD.FOpen(filename, "w");
     SD.FPrintf(sd, "power, counts/s\n");
-    for(int p = -100; p <= 100; p+=5){
+    for(int i = -100; i <= 100; i+=5){
         m.SetPercent(i);
         Sleep(0.2);
         e.ResetCounts();
         Sleep(1.0);
-        SD.FPrintf(sd, "%d, %d\n", p, e.Counts());
+        SD.FPrintf(sd, "%d, %d\n", i, e.Counts());
     }
     m.SetPercent(0);
     SD.FClose(sd);
@@ -510,7 +537,7 @@ void MotorCalibration(FEHMotor m, DigitalEncoder e, char filename[]){
 
 int main(void)
 {   
-
+    
     //Calibrate the servos
     flip_servo.SetMax(2350);
     flip_servo.SetMin(520);
@@ -521,31 +548,45 @@ int main(void)
     flip_servo.SetDegree(0);
     flip_servo.Off(); //Turn the servo off until it's needed
     arm_servo.SetDegree(180);
+
+/*
+MotorCalibration(r_motor, r_encoder, "RMCAL.csv");
+Sleep(5.0);
+MotorCalibration(l_motor, l_encoder, "LMCAL.csv");
+Sleep(5.0);
+MotorCalibration(b_motor, b_encoder, "BMCAL.csv");
+*/
     
     //initialize RPS
     RPS.InitializeTouchMenu();
+    while(1){
+        LCD.WriteLine("TRANSLATING(18,18)");
+        TranslateWithRPS(18,18,25);
+        // Sleep(1.0);
+        //TurnWithRPS(90, 25);
+        Sleep(5.0);
+    }
 
     //* Encoder turn calibration start
 
     // FEHFile *sd = SD.FOpen("turn.csv", "w");
-    // SD.FPrintf(sd, "power, target angle, target eSteps, modified eSteps, experimental eSteps B, experimental eSteps R, experimental eSteps L, calculated angle (aprox)\n");
+    // SD.FPrintf(sd, "power, target angle, target eSteps, modified eSteps, experimental eSteps B, experimental eSteps R, experimental eSteps L, start angle, end angle, calculated angle (aprox)\n");
 
-    // TurnCalibrate(90, 25, sd);
-    // TurnCalibrate(-90, 25, sd);
-
-    // // LCD.SetFontColor(BLACK);
-    // // for(int i = 10; i <= 40; i+=5){
-    // //     for(int j = -180; j<= 180; j+= 90){
-    // //             LCD.Clear(WHITE);
-    // //             LCD.WriteAt("pow:",0,0);
-    // //             LCD.WriteAt("ang:",0,20);
-    // //             LCD.WriteAt(i,50,0);
-    // //             LCD.WriteAt(j,50,20);
-    // //         if(j!=0){
-    // //             TurnCalibrate(j, i, sd);
-    // //         }
-    // //     }
-    // // }
+    // LCD.SetFontColor(BLACK);
+    // for(int i = 10; i <= 40; i+=5){
+    //     for(int j = -135; j<= 135; j+= 45){
+    //             LCD.Clear(WHITE);
+    //             LCD.WriteAt("pow:",0,0);
+    //             LCD.WriteAt("ang:",0,20);
+    //             LCD.WriteAt(i,50,0);
+    //             LCD.WriteAt(j,50,20);
+    //         if(j!=0){
+    //             TurnWithRPS(180, 25);
+    //             Sleep(0.5);
+    //             TurnCalibrate(j, i, sd);
+    //         }
+    //     }
+    // }
 
     // SD.FClose(sd);
 
@@ -557,32 +598,59 @@ int main(void)
 
     //* Encoder turn calibration end
 
- // Get x and y values for jukebox button
+    /*
     int timeCount = 0;
+    
     while (timeCount < 5) {
         PrintRPS();
         Sleep(1.0);
         timeCount++;
     }
+    */
+
+    //Get RPS values for jukebox light
+    float xpos,ypos;
+    while (!LCD.Touch(&xpos, &ypos)) {
+        PrintRPS();
+        Sleep(0.5);
+    }
+
     float jukeboxX, jukeboxY;
     jukeboxX = RPS.X();
     jukeboxY = RPS.Y();
+    LCD.Clear();
+    LCD.WriteAt(jukeboxX, 5, 5);
+    LCD.WriteAt(jukeboxY, 5, 25);
+    Sleep(2.0);
 
+    //Get RPS values for burger wheel
+    while (!LCD.Touch(&xpos, &ypos)) {
+        PrintRPS();
+        Sleep(0.5);
+    }
+
+    float burgerX, burgerY;
+    burgerX = RPS.X();
+    burgerY = RPS.Y();
+    LCD.Clear();
+    LCD.WriteAt(burgerX, 5, 5);
+    LCD.WriteAt(burgerY, 5, 25);
+
+    //Wait for the starting light
     while(!GetLightColor());
     Sleep(0.5);
 
-    //move to jukebox light
-    //TranslateWithRPS(10.3,15,25);
+    //Move towards jukebox light
     TranslateWithRPS(16,15.2,25);
     Sleep(0.25);
 
-    //move closer to jukebox light
+    //Move to jukebox light
     TranslateWithRPS(jukeboxX,jukeboxY,25);
     Sleep(0.5);
     TranslateWithRPS(jukeboxX,jukeboxY,15);
     Sleep(0.5);
     
-    //get the light color
+    //Get the light color and press correct button
     if(GetLightColor()) {
         //RED
         TurnWithRPS(180,25);
@@ -608,36 +676,31 @@ int main(void)
     //Turn towards the ramp
     TurnWithRPS(270, 25);
     Sleep(0.25);
-    TurnWithRPS(270, 25);
-    Sleep(0.25);
 
-    //Move up the ramp
+    //Move up the ramp and turn to face forward   
     TranslateWithEncoders(0,-33,70);
-
     Sleep(0.25);
-    TurnWithRPS(90, 25);
-    Sleep(0.25);
-    TurnWithRPS(90, 25);
+    TurnWithRPS(90, 25);         
     Sleep(0.25);
 
-    //determine correct ice cream lever
+    //Determine correct ice cream lever
     LCD.Clear();
     if (RPS.GetIceCream() == 0) {
-        //Move to the vanilla lever
+        //Move to the vanilla lever path
         LCD.Write("Vanilla");
-        TranslateWithRPS(15.3, 52.9, 25);
+        TranslateWithRPS(15.3, 52.9,40);
         Sleep(0.25);
     }
     else if (RPS.GetIceCream() == 1) {
-        //Move to the twist lever
+        //Move to the twist lever path
         LCD.Write("Twist");
-        TranslateWithRPS(18.3, 56, 25);
+        TranslateWithRPS(18.3, 56, 40);
         Sleep(0.25);
     }
     else if (RPS.GetIceCream() == 2){
-        //Move to the chocolate lever
+        //Move to the chocolate lever path
         LCD.Write("Chocolate");
-        TranslateWithRPS(20.5, 59, 25);
+        TranslateWithRPS(20.5, 59, 40);
         Sleep(0.25);
     }
 
@@ -646,7 +709,7 @@ int main(void)
     Sleep(0.25);
 
     //Move forward to the levers
-    TranslateWithEncoders(0,-6.5,20);
+    TranslateWithEncoders(0,-7,20);
     Sleep(0.5);
     
     //Flip the correct lever down
@@ -659,67 +722,98 @@ int main(void)
     //Move servo back up
     MoveArmServo(170);
 
-    //go to sink
+    //Go to sink
     TurnWithRPS(90,25);
     Sleep(0.25);
-    TurnWithRPS(90,25);
+    TranslateWithRPS(9 ,49 ,40);
     Sleep(0.25);
-    TranslateWithRPS(9 ,49 ,25);
-    Sleep(0.25);
-    TranslateWithTime(0.5, 20, -1, 0);
-    TranslateWithTime(1.5, 20, 0, -1);
+    TranslateWithTime(0.5, 25, -1, 0);
+    TranslateWithTime(1.0, 20, 0, -1);
 
-    //dump tray in sink
-    Sleep(0.25);
+    //Dump tray in sink
     MoveArmServo(40);
     Sleep(0.5);
 
-    //Move to middle of upper level
-    TranslateWithRPS(18,54,25);
-    Sleep(0.25);
-
-    //move back to correct lever
+    //Move back to correct lever
     LCD.Clear();
     if (RPS.GetIceCream() == 0) {
-        //Move to the vanilla lever
+        //Move to the vanilla lever path
         LCD.Write("Vanilla");
-        TranslateWithRPS(15.3, 52.9, 25);
+        TranslateWithRPS(15.3, 52.9, 40);
         Sleep(0.25);
     }
     else if (RPS.GetIceCream() == 1) {
-        //Move to the twist lever
+        //Move to the twist lever path
         LCD.Write("Twist");
-        TranslateWithRPS(18.3, 56, 25);
+        TranslateWithRPS(18.3, 56, 40);
         Sleep(0.25);
     }
     else if (RPS.GetIceCream() == 2){
-        //Move to the chocolate lever
+        //Move to the chocolate lever path
         LCD.Write("Chocolate");
-        TranslateWithRPS(20.5, 59, 25);
+        TranslateWithRPS(20.5, 59, 40);
         Sleep(0.25);
     }
 
     //Turn towards lever
     TurnWithRPS(315, 25);
     Sleep(0.25);
-    //Move forward to the levers
-    Sleep(0.5);
-    TranslateWithEncoders(0,-7.5,20);
-    Sleep(0.5);
+    
+    //Move forward to the lever
+    Sleep(0.25);
+    TranslateWithEncoders(0,-7,20);
+    Sleep(0.25);
 
-    //flip up ice cream up
+    //Flip ice cream lever up 
     MoveArmServo(85);
+    Sleep(0.25);
 
     //Move away from ice cream
-    TranslateWithEncoders(0,-8,25);
+    TranslateWithEncoders(0,8,25);
     Sleep(0.25);
     TurnWithRPS(90,25);
     MoveArmServo(0);
+    Sleep(0.25);
 
     //Move to ticket
-    TranslateWithRPS(31.4,47.9,25);
+    TranslateWithRPS(28,50,40);
     Sleep(0.25);
-    TranslateWithTime(1.0,25,0,-1);
+    TranslateWithRPS(31.5,43.2,40);
+    Sleep(0.25);
+    TranslateWithTime(1.0,25,1,-1);
+    Sleep(0.25);
+    
+    //Move ticket over
+    TranslateWithEncoders(-5,0,25);
+    Sleep(0.25);
+
+    //Translate away from ticket
+    TranslateWithRPS(28.6,54.8,25);
+    Sleep(0.25);
+
+    //Move to burge wheel (close to (27.9,62.7))
+    TranslateWithRPS(burgerX,burgerY,25);
+    Sleep(0.25);
+
+    //Use servo to flip the burger
+    MoveBurgerServo();
+
+    //Back off the burger wheel
+    TranslateWithEncoders(0,-5,25);
+    Sleep(0.25);
+
+    //Move to the top of the ramp
+    TranslateWithRPS(18,46,25);
+    Sleep(0.25);
+
+    //Go down the ramp
+    TranslateWithRPS(18,20,25);
+    Sleep(0.25);
+
+    //Move to final button
+    TurnWithRPS(135,25);
+    Sleep(0.25);
+    TranslateWithTime(10.0,25,0,-1);
 
     Sleep(3.0);
     //Get RPS Values
@@ -986,4 +1080,8 @@ int main(void)
     //* Encoder translation calibration end
 
 }
+
+
+
+
 
