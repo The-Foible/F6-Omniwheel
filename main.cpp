@@ -134,35 +134,37 @@ FEHServo flip_servo(FEHServo::Servo1);
    not be the most efficient method. 
    */
    void TranslateWithTime (float time, float power, float x_pos, float y_pos) {
+        const float rotation_correction_factor = -0.07;
         //Calculate angle of translation
         float angle = atan2(y_pos, x_pos);
 
-        //Initialize variables for motor power
-        float r_pow, l_pow, b_pow;
-        r_pow = -power * sin(onePIsix - angle);
-        l_pow = -power * sin(fivePIsix - angle);
-        b_pow = -power * sin(threePItwo - angle);
+        //Initialize and calculate variables for motor power
+        float rotation_correction_power = rotation_correction_factor * cos(3 * angle);
+
+        float r_pow = -power * (sin(onePIsix   - angle) + rotation_correction_power);
+        float l_pow = -power * (sin(fivePIsix  - angle) + rotation_correction_power);
+        float b_pow = -power * (sin(threePItwo - angle) + rotation_correction_power);
 
         //Adjust right motor power
         if (r_pow > 0) {
-            r_pow = r_pow + 5.58;
+            r_pow = r_pow + 5.5;
         }
         else if (r_pow < 0) {
-            r_pow = r_pow - 8.03;
+            r_pow = r_pow - 5.5;
         }
         //Adjust left motor power
         if (l_pow > 0) {
-            l_pow = l_pow + 5.74;
+            l_pow = l_pow + 5.5;
         }
         else if (l_pow < 0) {
-            l_pow = l_pow - 6.56;
+            l_pow = l_pow - 5.5;
         }
         //Adjust back motor power
         if (b_pow > 0) {
-            b_pow = b_pow + 6.5;
+            b_pow = b_pow + 5.5;
         }
         else if (b_pow < 0) {
-            b_pow = b_pow - 8.9;
+            b_pow = b_pow - 5.5;
         }
 
         //Set motor powers according to angle
@@ -208,24 +210,24 @@ FEHServo flip_servo(FEHServo::Servo1);
 
         //Adjust right motor power
         if (r_pow > 0) {
-            r_pow = r_pow + 5.58;
+            r_pow = r_pow + 5.5;
         }
         else if (r_pow < 0) {
-            r_pow = r_pow - 8.03;
+            r_pow = r_pow - 5.5;
         }
         //Adjust left motor power
         if (l_pow > 0) {
-            l_pow = l_pow + 5.74;
+            l_pow = l_pow + 5.5;
         }
         else if (l_pow < 0) {
-            l_pow = l_pow - 6.56;
+            l_pow = l_pow - 5.5;
         }
         //Adjust back motor power
         if (b_pow > 0) {
-            b_pow = b_pow + 6.5;
+            b_pow = b_pow + 5.5;
         }
         else if (b_pow < 0) {
-            b_pow = b_pow - 8.90;
+            b_pow = b_pow - 5.5;
         }
 
         //Set motor powers according to angle
@@ -239,7 +241,8 @@ FEHServo flip_servo(FEHServo::Servo1);
         bool b_done = false;
 
         //Initalize start time
-        float start_time = TimeNow();
+        float start_time = 3.0; //Bursts speed on start to overcome static friction
+        //float start_time = TimeNow();
 
         //Use Encoders to run the motors until reaching final point
         while (!r_done || !l_done || !b_done) {
@@ -476,24 +479,9 @@ FEHServo flip_servo(FEHServo::Servo1);
         LCD.WriteAt(RPS.Heading(), 50, 40);
     }
 
-
-void MotorCalibration(FEHMotor m, DigitalEncoder e, char *filename){
-    FEHFile *sd = SD.FOpen(filename, "w");
-    SD.FPrintf(sd, "power, counts/s\n");
-    for(int i = -100; i <= 100; i+=5){
-        m.SetPercent(i);
-        Sleep(0.2);
-        e.ResetCounts();
-        Sleep(1.0);
-        SD.FPrintf(sd, "%d, %d\n", i, e.Counts());
-    }
-    m.SetPercent(0);
-    SD.FClose(sd);
-}
-
 int main(void)
 {   
-    
+
     //Calibrate the servos
     flip_servo.SetMax(2350);
     flip_servo.SetMin(520);
@@ -502,7 +490,7 @@ int main(void)
 
     //Set the servos to 0 at the beginning of run
     flip_servo.SetDegree(0);
-    flip_servo.Off(); //Turn the servo off until it's needed
+    //flip_servo.Off(); //Turn the servo off until it's needed
     arm_servo.SetDegree(180);
     
     //initialize RPS
