@@ -436,6 +436,137 @@ FEHServo flip_servo(FEHServo::Servo1);
         SD.FClose(sd);
     }
 
+    void MoveWithRPS(float x_pos, float y_pos, float heading, float linear_accuracy = 0.5, float angular_accuracy = 1, bool predictive = true){
+        //Movement powers
+        const float translate_base_power = 50; //Normal translation speed
+        const float translate_min_power = 10; //Translation speed when very close to end destination
+        const float turn_base_power = 30; //Normal turning speed
+        const float turn_min_power = 10; //Turning speed when very close to final heading
+
+        //ramp-down distance
+        const float translate_ramp_distance = 6; //Distance (inch) at which to start ramping down translation speed 
+        const float turn_ramp_distance = 20; //Distance (degrees) at which to start ramping down rotation speed 
+
+        //Predictive mode variables
+        const float RPS_delay = 0.3; //Estimate of RPS delay to be used by the predictive mode
+        float last_x = 0;
+        float last_y = 0;
+        float last_a = 0;
+        float dx = 0; //x velocity
+        float dy = 0; //y velocity
+        float da = 0; //angular velocity
+        float last_time = 0; //time of last loop for velocity calculations
+
+        //Use RPS to calculate distance to a point
+        float current_x_pos = -3;
+        float current_y_pos = -3;
+        float current_heading = -3;
+
+        //Initalize values
+        float x_dif, x_adjusted, y_dif, y_adjusted, linear_distance, angle, translate_power, turn_power, r_pow, l_pow, b_pow, angular_distance;
+        float start_time = TimeNow();
+        GetRPS(&current_x_pos, &current_y_pos, &current_heading);
+        current_heading = (90 - current_heading) * M_PI/180; //Convert to radians
+
+        //Loops until the robot is no longer moving or 10 seconds have passed
+        while((translate_power > 0 || turn_power > 0) && start_time - TimeNow() < 10.0){
+
+            //Update position with RPS
+            GetRPS(&current_x_pos, &current_y_pos, &current_heading);
+            current_heading = (90 - current_heading) * M_PI/180; //Convert to radians
+
+            //**Begin prediction calculation**
+            //If predictive mode is on, predict where the robot probably is based on velocity and RPS delay
+            if(predictive){
+
+                //Exception for first loop
+                if(last_time != 0){
+                    //Calculate velocities (in/s)
+                    dx = (current_x_pos   - last_x) * (last_time - TimeNow());
+                    dy = (current_y_pos   - last_y) * (last_time - TimeNow());
+                    da = (current_heading - last_a) * (last_time - TimeNow());
+
+                    //Update robot position based on velocities
+                    current_x_pos += dx * RPS_delay;
+                    current_y_pos += dy * RPS_delay;
+                    current_heading += da * RPS_delay;
+                    current_heading = fmod(current_heading, 360);
+                }
+
+                //Update values for next loop
+                last_x = current_x_pos;
+                last_y = current_y_pos;
+                last_a = current_heading;
+                last_time = TimeNow();
+            }
+            //**End prediction calculation**
+
+            //**Begin translation calculation**
+            //calculate the distance to travel in x and y
+            x_dif = x_pos - current_x_pos;
+            y_dif = y_pos - current_y_pos;
+
+            //Rotate the translation vector based on the angle of the robot
+            x_adjusted = x_dif * cos(current_heading) - y_dif * sin(current_heading);
+            y_adjusted = x_dif * sin(current_heading) + y_dif * cos(current_heading);
+
+            //Calculate distance to the final point
+            linear_distance = hypot(x_dif, y_dif);
+
+            //Calculate translation power based on distance to the final point
+            if(linear_distance < translate_ramp_distance){
+                //Linear power based on the distance, up to the ramp distance
+                translate_power = linear_distance * (translate_base_power - translate_min_power) / translate_ramp_distance;
+            } else if(linear_distance < linear_accuracy){
+                //Stop translating if the robot is within the final zone
+                translate_power = 0;
+            } else {
+                //Constant power if the robot is far from the final point
+                translate_power = translate_base_power;
+            }
+            
+            //Calculate angle of translation
+            angle = atan2(y_adjusted, x_adjusted);
+
+            //Calculate individual motor power for translation
+            r_pow = -translate_power * sin(onePIsix   - angle);
+            l_pow = -translate_power * sin(fivePIsix  - angle);
+            b_pow = -translate_power * sin(threePItwo - angle);
+            //**End translation calculation**
+
+            //**Begin turning calculation**
+            //Calculate remaining angle
+            angular_distance = fmod(angle - current_heading + 180.0, 360.0) - 180;
+
+            if(angular_distance < turn_ramp_distance){
+                //Angular power based on the distance, up to the ramp distance
+                turn_power = angular_distance * (turn_base_power - turn_min_power) / turn_ramp_distance;
+            } else if(angular_distance < angular_accuracy){
+                //Stop rotating if the robot is within the final zone
+                turn_power = 0;
+            } else {
+                //Constant power if the robot is far from the final angle
+                turn_power = turn_base_power;
+            }
+
+            //Add the turning power to each motor
+            r_pow += turn_power;
+            l_pow += turn_power;
+            b_pow += turn_power;
+            //**End turning calculation**
+
+            //Update motor powers
+            r_motor.SetPercent(r_pow);
+            l_motor.SetPercent(l_pow);
+            b_motor.SetPercent(b_pow);
+        }
+        
+        //Stop the motors
+        r_motor.Stop();
+        l_motor.Stop();
+        b_motor.Stop();
+    }
+
     /*
     The PrintRPS function prints all RPS outputs to the screen so that they can be called in other functions.
     */
