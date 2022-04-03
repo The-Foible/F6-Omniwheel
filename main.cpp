@@ -469,96 +469,111 @@ FEHServo flip_servo(FEHServo::Servo1);
         current_heading = (90 - current_heading) * M_PI/180; //Convert to radians
 
         //Loops until the robot is no longer moving or 10 seconds have passed
-        while((translate_power > 0 || turn_power > 0) && start_time - TimeNow() < 10.0){
+        while((translate_power != 0 || turn_power != 0) && start_time - TimeNow() < 10.0){
 
             //Update position with RPS
-            GetRPS(&current_x_pos, &current_y_pos, &current_heading);
-            current_heading = (90 - current_heading) * M_PI/180; //Convert to radians
+            if(GetRPS(&current_x_pos, &current_y_pos, &current_heading) != 0){
+                //Stop the motors if GetRPS returns an error code
+                r_motor.Stop();
+                l_motor.Stop();
+                b_motor.Stop();
 
-            //**Begin prediction calculation**
-            //If predictive mode is on, predict where the robot probably is based on velocity and RPS delay
-            if(predictive){
+            } else {
+                current_heading = (90 - current_heading) * M_PI/180; //Convert to radians
 
-                //Exception for first loop
-                if(last_time != 0){
-                    //Calculate velocities (in/s)
-                    dx = (current_x_pos   - last_x) * (last_time - TimeNow());
-                    dy = (current_y_pos   - last_y) * (last_time - TimeNow());
-                    da = (current_heading - last_a) * (last_time - TimeNow());
+                //**Begin prediction calculation**
+                //If predictive mode is on, predict where the robot probably is based on velocity and RPS delay
+                if(predictive){
 
-                    //Update robot position based on velocities
-                    current_x_pos += dx * RPS_delay;
-                    current_y_pos += dy * RPS_delay;
-                    current_heading += da * RPS_delay;
-                    current_heading = fmod(current_heading, 360);
+                    //Exception for first loop
+                    if(last_time != 0){
+                        //Calculate velocities (in/s)
+                        dx = (current_x_pos   - last_x) * (last_time - TimeNow());
+                        dy = (current_y_pos   - last_y) * (last_time - TimeNow());
+                        da = (current_heading - last_a) * (last_time - TimeNow());
+
+                        //Update robot position based on velocities
+                        current_x_pos += dx * RPS_delay;
+                        current_y_pos += dy * RPS_delay;
+                        current_heading += da * RPS_delay;
+                        current_heading = fmod(current_heading, 360);
+                    }
+
+                    //Update values for next loop
+                    last_x = current_x_pos;
+                    last_y = current_y_pos;
+                    last_a = current_heading;
+                    last_time = TimeNow();
+                }
+                //**End prediction calculation**
+
+                //**Begin translation calculation**
+                //calculate the distance to travel in x and y
+                x_dif = x_pos - current_x_pos;
+                y_dif = y_pos - current_y_pos;
+
+                //Rotate the translation vector based on the angle of the robot
+                x_adjusted = x_dif * cos(current_heading) - y_dif * sin(current_heading);
+                y_adjusted = x_dif * sin(current_heading) + y_dif * cos(current_heading);
+
+                //Calculate distance to the final point
+                linear_distance = hypot(x_dif, y_dif);
+
+                //Calculate translation power based on distance to the final point
+                if(linear_distance < translate_ramp_distance){
+                    //Linear power based on the distance, up to the ramp distance
+                    translate_power = linear_distance * (translate_base_power - translate_min_power) / translate_ramp_distance;
+                } else if(linear_distance < linear_accuracy){
+                    //Stop translating if the robot is within the final zone
+                    translate_power = 0;
+                } else {
+                    //Constant power if the robot is far from the final point
+                    translate_power = translate_base_power;
+                }
+                
+                //Calculate angle of translation
+                angle = atan2(y_adjusted, x_adjusted);
+
+                //Calculate individual motor power for translation
+                r_pow = -translate_power * sin(onePIsix   - angle);
+                l_pow = -translate_power * sin(fivePIsix  - angle);
+                b_pow = -translate_power * sin(threePItwo - angle);
+                //**End translation calculation**
+
+                //**Begin turning calculation**
+                //Calculate remaining angle (in degrees)
+                angular_distance = fmod(angle - current_heading + 180.0, 360.0) - 180;
+
+                if(fabs(angular_distance) < turn_ramp_distance){
+                    //Linear power based on the angular distance, up to the ramp distance
+                    turn_power = fabs(angular_distance) * (turn_base_power - turn_min_power) / turn_ramp_distance;
+                } else if(fabs(angular_distance) < angular_accuracy){
+                    //Stop rotating if the robot is within the final zone
+                    turn_power = 0;
+                } else {
+                    //Constant power if the robot is far from the final angle
+                    turn_power = turn_base_power;
                 }
 
-                //Update values for next loop
-                last_x = current_x_pos;
-                last_y = current_y_pos;
-                last_a = current_heading;
-                last_time = TimeNow();
+                //If distance is shorter turning right, turn right
+                if(angular_distance < 0){
+                    turn_power = -turn_power;
+                }
+
+                //Add the turning power to each motor
+                r_pow += turn_power;
+                l_pow += turn_power;
+                b_pow += turn_power;
+                //**End turning calculation**
+
+                //Update motor powers
+                r_motor.SetPercent(r_pow);
+                l_motor.SetPercent(l_pow);
+                b_motor.SetPercent(b_pow);
+
+                //Not sure if a sleep is necessary or will even help
+                Sleep(50);
             }
-            //**End prediction calculation**
-
-            //**Begin translation calculation**
-            //calculate the distance to travel in x and y
-            x_dif = x_pos - current_x_pos;
-            y_dif = y_pos - current_y_pos;
-
-            //Rotate the translation vector based on the angle of the robot
-            x_adjusted = x_dif * cos(current_heading) - y_dif * sin(current_heading);
-            y_adjusted = x_dif * sin(current_heading) + y_dif * cos(current_heading);
-
-            //Calculate distance to the final point
-            linear_distance = hypot(x_dif, y_dif);
-
-            //Calculate translation power based on distance to the final point
-            if(linear_distance < translate_ramp_distance){
-                //Linear power based on the distance, up to the ramp distance
-                translate_power = linear_distance * (translate_base_power - translate_min_power) / translate_ramp_distance;
-            } else if(linear_distance < linear_accuracy){
-                //Stop translating if the robot is within the final zone
-                translate_power = 0;
-            } else {
-                //Constant power if the robot is far from the final point
-                translate_power = translate_base_power;
-            }
-            
-            //Calculate angle of translation
-            angle = atan2(y_adjusted, x_adjusted);
-
-            //Calculate individual motor power for translation
-            r_pow = -translate_power * sin(onePIsix   - angle);
-            l_pow = -translate_power * sin(fivePIsix  - angle);
-            b_pow = -translate_power * sin(threePItwo - angle);
-            //**End translation calculation**
-
-            //**Begin turning calculation**
-            //Calculate remaining angle
-            angular_distance = fmod(angle - current_heading + 180.0, 360.0) - 180;
-
-            if(angular_distance < turn_ramp_distance){
-                //Angular power based on the distance, up to the ramp distance
-                turn_power = angular_distance * (turn_base_power - turn_min_power) / turn_ramp_distance;
-            } else if(angular_distance < angular_accuracy){
-                //Stop rotating if the robot is within the final zone
-                turn_power = 0;
-            } else {
-                //Constant power if the robot is far from the final angle
-                turn_power = turn_base_power;
-            }
-
-            //Add the turning power to each motor
-            r_pow += turn_power;
-            l_pow += turn_power;
-            b_pow += turn_power;
-            //**End turning calculation**
-
-            //Update motor powers
-            r_motor.SetPercent(r_pow);
-            l_motor.SetPercent(l_pow);
-            b_motor.SetPercent(b_pow);
         }
         
         //Stop the motors
