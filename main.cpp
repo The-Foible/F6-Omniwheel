@@ -463,16 +463,16 @@ FEHServo flip_servo(FEHServo::Servo1);
 
         //ramp-down distance
         const float translate_ramp_distance = 6; //Distance (inch) at which to start ramping down translation speed 
-        const float turn_ramp_distance = 20; //Distance (degrees) at which to start ramping down rotation speed 
+        const float turn_ramp_distance = 15; //Distance (degrees) at which to start ramping down rotation speed 
 
         //Predictive mode variables
         const float RPS_delay = 0.3; //Estimate of RPS delay to be used by the predictive mode
         float last_x = 0;
         float last_y = 0;
         float last_a = 0;
-        float dx = 0; //x velocity
-        float dy = 0; //y velocity
-        float da = 0; //angular velocity
+        float dx = 0; //x velocity (in/s)
+        float dy = 0; //y velocity (in/s)
+        float da = 0; //angular velocity (deg/s)
         float last_time = 0; //time of last loop for velocity calculations
 
         //Use RPS to calculate distance to a point
@@ -481,10 +481,8 @@ FEHServo flip_servo(FEHServo::Servo1);
         float current_heading = -3;
 
         //Initalize values
-        float x_dif, x_adjusted, y_dif, y_adjusted, linear_distance, angle, translate_power, turn_power, r_pow, l_pow, b_pow, angular_distance;
+        float x_dif, x_adjusted, y_dif, y_adjusted, linear_distance, angle, translate_power, turn_power, r_pow, l_pow, b_pow, angular_distance, current_heading_radians;
         float start_time = TimeNow();
-        GetRPS(&current_x_pos, &current_y_pos, &current_heading);
-        current_heading = (90 - current_heading) * M_PI/180; //Convert to radians
 
         //Loops until the robot is no longer moving or 10 seconds have passed
         while((translate_power != 0 || turn_power != 0) && start_time - TimeNow() < 10.0){
@@ -497,7 +495,7 @@ FEHServo flip_servo(FEHServo::Servo1);
                 b_motor.Stop();
 
             } else {
-                current_heading = (90 - current_heading) * M_PI/180; //Convert to radians
+                current_heading_radians = (90 - current_heading) * M_PI/180; //Convert to radians
 
                 //**Begin prediction calculation**
                 //If predictive mode is on, predict where the robot probably is based on velocity and RPS delay
@@ -531,19 +529,19 @@ FEHServo flip_servo(FEHServo::Servo1);
                 y_dif = y_pos - current_y_pos;
 
                 //Rotate the translation vector based on the angle of the robot
-                x_adjusted = x_dif * cos(current_heading) - y_dif * sin(current_heading);
-                y_adjusted = x_dif * sin(current_heading) + y_dif * cos(current_heading);
+                x_adjusted = x_dif * cos(current_heading_radians) - y_dif * sin(current_heading_radians);
+                y_adjusted = x_dif * sin(current_heading_radians) + y_dif * cos(current_heading_radians);
 
                 //Calculate distance to the final point
                 linear_distance = hypot(x_dif, y_dif);
 
                 //Calculate translation power based on distance to the final point
-                if(linear_distance < translate_ramp_distance){
-                    //Linear power based on the distance, up to the ramp distance
-                    translate_power = linear_distance * (translate_base_power - translate_min_power) / translate_ramp_distance;
-                } else if(linear_distance < linear_accuracy){
+                if(linear_distance < linear_accuracy){
                     //Stop translating if the robot is within the final zone
                     translate_power = 0;
+                } else if(linear_distance < translate_ramp_distance){
+                    //Linear power based on the distance, up to the ramp distance
+                    translate_power = linear_distance * (translate_base_power - translate_min_power) / translate_ramp_distance;
                 } else {
                     //Constant power if the robot is far from the final point
                     translate_power = translate_base_power;
@@ -560,14 +558,14 @@ FEHServo flip_servo(FEHServo::Servo1);
 
                 //**Begin turning calculation**
                 //Calculate remaining angle (in degrees)
-                angular_distance = fmod(angle - current_heading + 180.0, 360.0) - 180;
+                angular_distance = fmod(heading - current_heading + 180.0, 360.0) - 180;
 
-                if(fabs(angular_distance) < turn_ramp_distance){
-                    //Linear power based on the angular distance, up to the ramp distance
-                    turn_power = fabs(angular_distance) * (turn_base_power - turn_min_power) / turn_ramp_distance;
-                } else if(fabs(angular_distance) < angular_accuracy){
+                 if (fabs(angular_distance) < angular_accuracy){
                     //Stop rotating if the robot is within the final zone
                     turn_power = 0;
+                } else if(fabs(angular_distance) < turn_ramp_distance){
+                    //Linear power based on the angular distance, up to the ramp distance
+                    turn_power = fabs(angular_distance) * (turn_base_power - turn_min_power) / turn_ramp_distance;
                 } else {
                     //Constant power if the robot is far from the final angle
                     turn_power = turn_base_power;
