@@ -93,24 +93,42 @@ FEHServo flip_servo(FEHServo::Servo1);
     }
 
     //The GetRPS function populates the value pointed to by each POINTER argument with the relevant RPS value
-    //For any values you don't need for a use, populate the parameters with 0
-    //GetRPS(0, 0, &current_heading); //Gets heading and ignores X and Y positions
-    int GetRPS(float *x = 0, float *y = 0, float *heading = 0){
+    //For any values you don't need for a use, populate the parameters with 0 or null pointer
+    //Function returns error code 1 if a valid RPS reading isn't achieved in 1 second
+    //GetRPS(0, 0, &current_heading); //Example: Gets heading and ignores X and Y positions
+    int GetRPS(float *x, float *y, float *heading){
         float start_time = TimeNow();
-        //Loop until RPS returns a non-error value
-        while(RPS.Heading() < 0){
+        float tmp_heading = 1;
+        bool valid = false;
+
+        //Loop until RPS returns a non-error value for heading (representing a non-error for other values too)
+        while(!valid){
             //Specify the error value
-            if(RPS.Heading() == -1){
+            if (tmp_heading == -1){
                 LCD.WriteLine("QR CODE NOT FOUND");
-            } else {
+                valid = false;
+            } else if (tmp_heading == -2) {
                 LCD.WriteLine("DEADZONE");
+                valid = false;
+            } else if (RPS.X() > 36.0 || RPS.Y() > 72.0){
+                LCD.Write("X Y COORDINATES OUT OF BOUNDS");
+                LCD.Write("  X: ");
+                LCD.Write(RPS.X());
+                LCD.Write("  Y: ");
+                LCD.Write(RPS.Y());
+                LCD.WriteLine(" ");
+                valid = false;
+            } else {
+                valid = true;
             }
 
-            //Check how long it's been looping and break if it's more than 5s
-            if((TimeNow() - start_time) > 5.0 ){
+            //Check how long it's been looping and break if it's more than 1s
+            if((TimeNow() - start_time) > 1.0 ){
                 return 1;
             }
-            Sleep(10);
+
+            //Update heading reaading
+            tmp_heading = RPS.Heading();
         }
 
         //Populate the value of any fields given
