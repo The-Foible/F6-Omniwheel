@@ -628,6 +628,15 @@ int main(void)
     //initialize RPS
     RPS.InitializeTouchMenu();
 
+    //**Begin MoveWithRPS Test**
+    for(float ang = 0; ang <= 2*M_PI; ang += M_PI/6){
+        MoveWithRPS(23.0 + 7.0 * cos(ang), 51.0 + 7.0 * sin(ang), fmod(ang/M_PI*500, 360));
+        Sleep(0.5);
+        MoveWithRPS(23.0 - 7.0 * cos(ang), 51.0 - 7.0 * sin(ang), fmod(ang/M_PI*500, 360));
+        Sleep(0.5);
+    }
+    //**End MoveWithRPS Test**
+
     //Get RPS values for jukebox light
     float xpos,ypos;
     while (!LCD.Touch(&xpos, &ypos)) {
