@@ -628,13 +628,44 @@ int main(void)
     //initialize RPS
     RPS.InitializeTouchMenu();
 
+    //**Begin RPS Delay Measurement**
+    // #include "FEHAccel.h"
+    // FEHFile *out = SD.FOpen("delay.csv", "w");
+    // SD.FPrintf(out, "Time, RPS X, Accel X\n");
+    // float init_time = TimeNow();
+
+    // //loop 10 times
+    // for (int i = 0; i < 10; i++){
+    //     float start_time = TimeNow();
+    //     //Drive forward for 0.7 seconds
+    //     r_motor.SetPercent(-15);
+    //     l_motor.SetPercent(15);
+    //     while (start_time - TimeNow() < 0.7){ 
+    //         SD.FPrintf(out, "%f, %f, %f\n", init_time - TimeNow(), RPS.X(), Accel.Y());
+    //         Sleep(10); //100hz measurement
+    //     }
+
+    //     //Back up for 0.5 seconds
+    //     r_motor.SetPercent(15);
+    //     l_motor.SetPercent(-15);
+    //     while (start_time - TimeNow() < 0.5){ 
+    //         SD.FPrintf(out, "%f, %f, %f\n", init_time - TimeNow(), RPS.X(), Accel.Y());
+    //         Sleep(10); //100hz measurement
+    //     }
+    //     r_motor.Stop();
+    //     l_motor.Stop();
+    // } 
+    // SD.FClose(out);
+    // return 0;
+    //**End RPS Delay Measurement**
+
     //**Begin MoveWithRPS Test**
-    for(float ang = 0; ang <= 2*M_PI; ang += M_PI/6){
-        MoveWithRPS(23.0 + 7.0 * cos(ang), 51.0 + 7.0 * sin(ang), fmod(ang/M_PI*500, 360));
-        Sleep(0.5);
-        MoveWithRPS(23.0 - 7.0 * cos(ang), 51.0 - 7.0 * sin(ang), fmod(ang/M_PI*500, 360));
-        Sleep(0.5);
-    }
+    // for(float ang = 0; ang <= 2*M_PI; ang += M_PI/6){
+    //     MoveWithRPS(23.0 + 7.0 * cos(ang), 51.0 + 7.0 * sin(ang), fmod(ang/M_PI*500, 360));
+    //     Sleep(0.5);
+    //     MoveWithRPS(23.0 - 7.0 * cos(ang), 51.0 - 7.0 * sin(ang), fmod(ang/M_PI*500, 360));
+    //     Sleep(0.5);
+    // }
     //**End MoveWithRPS Test**
 
     //Get RPS values for jukebox light
