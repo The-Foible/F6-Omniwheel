@@ -596,13 +596,6 @@ int main(void)
     
     //initialize RPS
     RPS.InitializeTouchMenu();
-    // while(1){
-    //     LCD.WriteLine("TRANSLATING(18,18)");
-    //     TranslateWithRPS(18,18,25);
-    //     Sleep(1.0);
-    //     TurnWithRPS(90, 25);
-    //     Sleep(5.0);
-    // }
 
     //Get RPS values for jukebox light
     float xpos,ypos;
