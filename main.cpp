@@ -660,6 +660,16 @@ int main(void)
     //**End RPS Delay Measurement**
 
     //**Begin MoveWithRPS Test**
+    // float tmpx, tmpy;
+    // while (!LCD.Touch(&tmpx, &tmpy)) {
+    //     MoveWithRPS(18, 18, 0, 0.5, 360);
+    // }
+    // while (!LCD.Touch(&tmpx, &tmpy)) {
+    //     MoveWithRPS(18, 18, 90, 100, 2);
+    // }
+    // while (!LCD.Touch(&tmpx, &tmpy)) {
+    //     MoveWithRPS(18, 18, 90);
+    // }
     // for(float ang = 0; ang <= 2*M_PI; ang += M_PI/6){
     //     MoveWithRPS(23.0 + 7.0 * cos(ang), 51.0 + 7.0 * sin(ang), fmod(ang/M_PI*500, 360));
     //     Sleep(0.5);
