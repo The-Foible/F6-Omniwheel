@@ -607,8 +607,8 @@ FEHServo flip_servo(FEHServo::Servo1);
         LCD.WriteAt(RPS.X(), 30, 0);
         LCD.WriteAt("y = ", 0, 20);
         LCD.WriteAt(RPS.Y(), 30, 20);
-        LCD.WriteAt("angle = ", 0, 40);
-        LCD.WriteAt(RPS.Heading(), 50, 40);
+        LCD.WriteAt("a = ", 0, 40);
+        LCD.WriteAt(RPS.Heading(), 30, 40);
     }
 
 int main(void)
@@ -626,7 +626,30 @@ int main(void)
     arm_servo.SetDegree(180);
     
     //initialize RPS
-    RPS.InitializeTouchMenu();
+    //RPS.InitializeTouchMenu();
+
+    //**Begin RPS Offset Measurement**
+    // FEHFile *outsd = SD.FOpen("RPSOFF1.CSV", "w");
+    // float tmpx1, tmpy1;
+    // for(int i = 1; i <= 4; i++){
+    //     LCD.ClearBuffer();
+    //     while (!LCD.Touch(&tmpx1, &tmpy1)) {
+    //         PrintRPS();
+    //         Sleep(50);
+    //     }
+    //     SD.FPrintf(outsd, "%f, %f, %f\n", RPS.X(), RPS.Y(), RPS.Heading());
+    //     LCD.Clear(WHITE);
+    //     Sleep(50); 
+    //     LCD.Clear(BLACK);
+    //     LCD.Write("LOGGED: ");
+    //     LCD.WriteLine(i); 
+    //     Sleep(1.0);
+    // }
+    // SD.FClose(outsd);
+    // LCD.Clear(GREEN);
+    // return 0;
+    
+    //**End RPS Offset Measurement**
 
     //**Begin RPS Delay Measurement**
     // #include "FEHAccel.h"
@@ -689,8 +712,9 @@ int main(void)
     jukeboxX = RPS.X();
     jukeboxY = RPS.Y();
     LCD.Clear();
-    LCD.WriteAt(jukeboxX, 5, 5);
-    LCD.WriteAt(jukeboxY, 5, 25);
+    LCD.WriteAt("Jukebox is set:",5,5);
+    LCD.WriteAt(jukeboxX, 5, 25);
+    LCD.WriteAt(jukeboxY, 5, 45);
     Sleep(2.0);
 
     //Get RPS values for burger wheel
@@ -703,8 +727,9 @@ int main(void)
     burgerX = RPS.X();
     burgerY = RPS.Y();
     LCD.Clear();
-    LCD.WriteAt(burgerX, 5, 5);
-    LCD.WriteAt(burgerY, 5, 25);
+    LCD.WriteAt("Burger is set:", 5,5);
+    LCD.WriteAt(burgerX, 5, 25);
+    LCD.WriteAt(burgerY, 5, 45);
 
     //Wait for the starting light
     while(!GetLightColor());
@@ -712,35 +737,35 @@ int main(void)
 
     //Move towards jukebox light
     //TranslateWithRPS(16,15.2,25);
-    TranslateWithEncoders(0,9,25);
-    Sleep(0.25);
+    TranslateWithEncoders(0,9,30);                       //speed changed from 25
+    //Sleep(0.25);
 
     //Move to jukebox light
-    TranslateWithRPS(jukeboxX,jukeboxY,25,0.5);
-    Sleep(0.5);
+    TranslateWithRPS(jukeboxX,jukeboxY,30,0.5);          //speed changed from 25
+    //Sleep(0.5);
     
     //Get the light color and press correct button
     if(GetLightColor()) {
         //RED
         TurnWithRPS(180,25);
-        Sleep(0.25);
+        //Sleep(0.25);
         TranslateWithRPS(7.4,12,25,0.5);
-        Sleep(0.25);
+        //Sleep(0.25);
         TranslateWithTime(0.5,15,-1,0);
 
     } else {
         //BLUE
         TurnWithRPS(180,25);
-        Sleep(0.25);
+        //Sleep(0.25);
         TranslateWithRPS(10.6,12,25,0.5);
-        Sleep(0.25);
+        //Sleep(0.25);
         TranslateWithTime(0.5,15,-1,0);
     }
-    Sleep(0.5);
+    //Sleep(0.5);
 
     //Move to the base of the ramp
-    TranslateWithRPS(18, 18, 25, 0.5);
-    Sleep(0.25);
+    TranslateWithRPS(18, 18, 30, 0.5);               //speed changed from 25
+    //Sleep(0.25);
 
     //Turn towards the ramp
     TurnWithRPS(270, 25);
@@ -793,9 +818,9 @@ int main(void)
 
     //Go to sink
     TurnWithRPS(90,25);
-    Sleep(0.25);
+    //Sleep(0.25);
     TranslateWithRPS(9 ,48 ,40, 0.5);
-    Sleep(0.25);
+    //Sleep(0.25);
     TranslateWithTime(0.5, 25, -1, 0);
     TranslateWithTime(1.0, 20, 0, -1);
 
@@ -838,7 +863,7 @@ int main(void)
     Sleep(0.25);
 
     //Move away from ice cream
-    TranslateWithEncoders(0,8,25);
+    TranslateWithEncoders(0,8,30);                //speed changed from 25
     Sleep(0.25);
     TurnWithRPS(90,25);
     MoveArmServo(0);
@@ -847,7 +872,7 @@ int main(void)
     //Move to ticket
     // TranslateWithRPS(28,50,40);
     // Sleep(0.25);
-    TranslateWithRPS(30.9, 46, 25, 0.5);
+    TranslateWithRPS(30.9, 46, 30, 0.5);              //speed changed from 25
     Sleep(0.25);
     TranslateWithTime(2.0,20,1,-1);
     Sleep(0.25);
@@ -858,6 +883,7 @@ int main(void)
 
 
     //Move to burger wheel (close to (27.9,62.7))
+    TranslateWithRPS(burgerX, (burgerY - 3), 35, 0.5);
     TranslateWithRPS(burgerX, burgerY, 25, 0.5);
     //Move servo back up
     MoveArmServo(180);
@@ -878,17 +904,17 @@ int main(void)
     Sleep(0.25);
 
     //Move to the top of the ramp
-    TranslateWithRPS(18,46,25, 0.5);
-    Sleep(0.25);
+    TranslateWithRPS(18,46,35, 0.5);               //speed changed from 25
+    //Sleep(0.25);
 
     //Go down the ramp
-    TranslateWithRPS(18,20,25, 0.5);
-    Sleep(0.25);
+    TranslateWithRPS(18,20,35, 0.5);              //speed changed from 25
+    //Sleep(0.25);
 
     //Move to final button
-    TurnWithRPS(135,25);
+    TurnWithRPS(135,25);   
     Sleep(0.25);
-    TranslateWithTime(10.0,25,0,-1);
+    TranslateWithTime(10.0,30,0,-1);
 
     Sleep(3.0);
     //Get RPS Values
