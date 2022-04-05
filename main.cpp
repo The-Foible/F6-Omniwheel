@@ -107,22 +107,16 @@ FEHServo flip_servo(FEHServo::Servo1);
 
             //Specify the error value
             if (tmp_x == -1 || tmp_y == -1 || tmp_heading == -1){
-                LCD.Clear(BLACK);
-                LCD.SetFontColor(SCARLET);
-                LCD.FillCircle(319, 0, 100);
+                LCD.Clear(SCARLET);
                 LCD.SetFontColor(WHITE);
                 LCD.WriteLine("QR CODE NOT FOUND");
             } else if (tmp_heading == -2) {
-                LCD.Clear(BLACK);
-                LCD.SetFontColor(DEEPSKYBLUE);
-                LCD.FillCircle(319, 0, 100);
-                LCD.SetFontColor(WHITE);
+                LCD.Clear(DEEPSKYBLUE);
+                LCD.SetFontColor(BLACK);
                 LCD.WriteLine("DEADZONE");
             } else if (tmp_x > 36.0 || tmp_y > 72.0 || tmp_heading > 360.0 ){
-                LCD.Clear(BLACK);
-                LCD.SetFontColor(GOLD);
-                LCD.FillCircle(319, 0, 100);
-                LCD.SetFontColor(WHITE);
+                LCD.Clear(GOLD);
+                LCD.SetFontColor(BLACK);
                 LCD.WriteLine("QR CODE NOT FOUND");
                 LCD.Write("COORDINATES OUT OF BOUNDS");
             } else { //If there are no errors
@@ -137,6 +131,7 @@ FEHServo flip_servo(FEHServo::Servo1);
                     *heading = RPS.Heading();
                 }
                 LCD.Clear(FORESTGREEN);
+                LCD.SetFontColor(WHITE);
                 return 0;
             }
 
