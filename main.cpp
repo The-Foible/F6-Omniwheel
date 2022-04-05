@@ -579,7 +579,7 @@ FEHServo flip_servo(FEHServo::Servo1);
                 //Calculate remaining angle (in degrees)
                 angular_distance = fmod(heading - current_heading + 180.0, 360.0) - 180;
 
-                 if (fabs(angular_distance) < angular_accuracy){
+                if (fabs(angular_distance) < angular_accuracy){
                     //Stop rotating if the robot is within the final zone
                     turn_power = 0;
                 } else if(fabs(angular_distance) < turn_precise_distance){
@@ -644,6 +644,13 @@ FEHServo flip_servo(FEHServo::Servo1);
                 //Not sure if a sleep is necessary or will even help
                 Sleep(50);
             }
+        }
+        
+        //Fallback for failed turn
+        if (fabs(angular_distance) > angular_accuracy){
+            Sleep(0.2);
+            GetRPS(0, 0, &current_heading);
+            TurnWithEncoders(angle - current_heading, 15);
         }
         
         //Stop the motors
