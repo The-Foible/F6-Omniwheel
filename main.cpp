@@ -98,51 +98,53 @@ FEHServo flip_servo(FEHServo::Servo1);
     //GetRPS(0, 0, &current_heading); //Example: Gets heading and ignores X and Y positions
     int GetRPS(float *x, float *y, float *heading){
         float start_time = TimeNow();
-        float tmp_heading = 1;
-        bool valid = false;
 
         //Loop until RPS returns a non-error value for heading (representing a non-error for other values too)
-        while(!valid){
+        while(1){
+            float tmp_x = RPS.X();
+            float tmp_y = RPS.Y();
+            float tmp_heading = RPS.Heading();
+
             //Specify the error value
-            if (tmp_heading == -1){
+            if (tmp_x == -1 || tmp_y == -1 || tmp_heading == -1){
+                LCD.Clear(BLACK);
+                LCD.SetFontColor(SCARLET);
+                LCD.FillCircle(319, 0, 100);
+                LCD.SetFontColor(WHITE);
                 LCD.WriteLine("QR CODE NOT FOUND");
-                valid = false;
             } else if (tmp_heading == -2) {
+                LCD.Clear(BLACK);
+                LCD.SetFontColor(DEEPSKYBLUE);
+                LCD.FillCircle(319, 0, 100);
+                LCD.SetFontColor(WHITE);
                 LCD.WriteLine("DEADZONE");
-                valid = false;
-            } else if (RPS.X() > 36.0 || RPS.Y() > 72.0){
-                LCD.Write("X Y COORDINATES OUT OF BOUNDS");
-                LCD.Write("  X: ");
-                LCD.Write(RPS.X());
-                LCD.Write("  Y: ");
-                LCD.Write(RPS.Y());
-                LCD.WriteLine(" ");
-                valid = false;
-            } else {
-                valid = true;
+            } else if (tmp_x > 36.0 || tmp_y > 72.0 || tmp_heading > 360.0 ){
+                LCD.Clear(BLACK);
+                LCD.SetFontColor(GOLD);
+                LCD.FillCircle(319, 0, 100);
+                LCD.SetFontColor(WHITE);
+                LCD.WriteLine("QR CODE NOT FOUND");
+                LCD.Write("COORDINATES OUT OF BOUNDS");
+            } else { //If there are no errors
+                //Populate the value of any fields given
+                if(x != 0){
+                    *x = RPS.X();
+                }
+                if(x != 0){
+                    *y = RPS.Y();
+                }
+                if(x != 0){
+                    *heading = RPS.Heading();
+                }
+                LCD.Clear(FORESTGREEN);
+                return 0;
             }
 
-            //Check how long it's been looping and break if it's more than 1s
-            if((TimeNow() - start_time) > 1.0 ){
+            //Check how long it's been looping and break if it's more than 0.5s
+            if((TimeNow() - start_time) > 0.5 ){
                 return 1;
             }
-
-            //Update heading reaading
-            tmp_heading = RPS.Heading();
         }
-
-        //Populate the value of any fields given
-        if(x != 0){
-            *x = RPS.X();
-        }
-        if(x != 0){
-            *y = RPS.Y();
-        }
-        if(x != 0){
-            *heading = RPS.Heading();
-        }
-
-        return 0;
     }
 
    /*
@@ -454,19 +456,20 @@ FEHServo flip_servo(FEHServo::Servo1);
         SD.FClose(sd);
     }
 
-    void MoveWithRPS(float x_pos, float y_pos, float heading, float linear_accuracy = 0.5, float angular_accuracy = 1, bool predictive = true){
+    void MoveWithRPS(float x_pos, float y_pos, float heading, float linear_accuracy = 0.5, float angular_accuracy = 1.5, bool predictive = true){
         //Movement powers
-        const float translate_base_power = 50; //Normal translation speed
+        const float translate_base_power = 70; //Normal translation speed
         const float translate_min_power = 10; //Translation speed when very close to end destination
         const float turn_base_power = 30; //Normal turning speed
-        const float turn_min_power = 10; //Turning speed when very close to final heading
+        const float turn_min_power = 1; //Turning speed when very close to final heading
 
         //ramp-down distance
         const float translate_ramp_distance = 6; //Distance (inch) at which to start ramping down translation speed 
-        const float turn_ramp_distance = 15; //Distance (degrees) at which to start ramping down rotation speed 
+        const float turn_ramp_distance = 45; //Distance (degrees) at which to start ramping down rotation speed 
+        const float turn_precise_distance = 0; //Distance (degrees) at which to maintain a constant, low turn speed. 
 
         //Predictive mode variables
-        const float RPS_delay = 0.3; //Estimate of RPS delay to be used by the predictive mode
+        const float RPS_delay = 0.25; //Estimate of RPS delay to be used by the predictive mode
         float last_x = 0;
         float last_y = 0;
         float last_a = 0;
@@ -496,31 +499,47 @@ FEHServo flip_servo(FEHServo::Servo1);
 
             } else {
                 current_heading_radians = (90 - current_heading) * M_PI/180; //Convert to radians
+                //!Logging
+                LCD.Clear();
+                LCD.Write("X: ");
+                LCD.WriteLine(current_x_pos);
+                LCD.Write("Y: ");
+                LCD.WriteLine(current_y_pos);
+                LCD.Write("hdg: ");
+                LCD.WriteLine(current_heading);
+                LCD.Write("X target: ");
+                LCD.WriteLine(x_pos);
+                LCD.Write("Y target: ");
+                LCD.WriteLine(y_pos);
+                LCD.Write("hdg target: ");
+                LCD.WriteLine(heading);
+                LCD.Write("predictive: ");
+                LCD.WriteLine(predictive);
 
                 //**Begin prediction calculation**
-                //If predictive mode is on, predict where the robot probably is based on velocity and RPS delay
-                if(predictive){
 
-                    //Exception for first loop
-                    if(last_time != 0){
-                        //Calculate velocities (in/s)
-                        dx = (current_x_pos   - last_x) * (last_time - TimeNow());
-                        dy = (current_y_pos   - last_y) * (last_time - TimeNow());
-                        da = (current_heading - last_a) * (last_time - TimeNow());
+                //Exception for first loop
+                if(last_time != 0){
+                    //Calculate velocities (in/s)
+                    dx = (current_x_pos   - last_x) * (last_time - TimeNow());
+                    dy = (current_y_pos   - last_y) * (last_time - TimeNow());
+                    da = (current_heading - last_a) * (last_time - TimeNow());
 
+                    //If predictive mode is on, predict where the robot probably is based on velocity and RPS delay
+                    if(predictive){
                         //Update robot position based on velocities
                         current_x_pos += dx * RPS_delay;
                         current_y_pos += dy * RPS_delay;
                         current_heading += da * RPS_delay;
                         current_heading = fmod(current_heading, 360);
                     }
-
-                    //Update values for next loop
-                    last_x = current_x_pos;
-                    last_y = current_y_pos;
-                    last_a = current_heading;
-                    last_time = TimeNow();
                 }
+
+                //Update values for next loop
+                last_x = current_x_pos;
+                last_y = current_y_pos;
+                last_a = current_heading;
+                last_time = TimeNow();
                 //**End prediction calculation**
 
                 //**Begin translation calculation**
@@ -546,6 +565,11 @@ FEHServo flip_servo(FEHServo::Servo1);
                     //Constant power if the robot is far from the final point
                     translate_power = translate_base_power;
                 }
+
+                //If the robot is stuck, give it a power boost
+                // if(dx == 0 && dy == 0){
+                //     translate_power *= 1.3;
+                // }
                 
                 //Calculate angle of translation
                 angle = atan2(y_adjusted, x_adjusted);
@@ -563,9 +587,12 @@ FEHServo flip_servo(FEHServo::Servo1);
                  if (fabs(angular_distance) < angular_accuracy){
                     //Stop rotating if the robot is within the final zone
                     turn_power = 0;
+                } else if(fabs(angular_distance) < turn_precise_distance){
+                    //flat power for precise rotation at a low speed 
+                    turn_power = turn_min_power;
                 } else if(fabs(angular_distance) < turn_ramp_distance){
                     //Linear power based on the angular distance, up to the ramp distance
-                    turn_power = fabs(angular_distance) * (turn_base_power - turn_min_power) / turn_ramp_distance;
+                    turn_power = fabs(angular_distance) * (turn_base_power - turn_min_power) / turn_ramp_distance + turn_min_power;
                 } else {
                     //Constant power if the robot is far from the final angle
                     turn_power = turn_base_power;
@@ -576,16 +603,48 @@ FEHServo flip_servo(FEHServo::Servo1);
                     turn_power = -turn_power;
                 }
 
+                LCD.WriteLine(da);
+                //If the robot is stuck, give it a power boost
+                // if(da == 0){
+                //     LCD.WriteLine("BOOSTING TURN");
+                //     turn_power = 1.5 * turn_power;
+                // }
+
                 //Add the turning power to each motor
                 r_pow += turn_power;
                 l_pow += turn_power;
                 b_pow += turn_power;
                 //**End turning calculation**
 
+                //**Begin friction compensation**
+                //Adjust right motor power
+                if (r_pow > 0) {
+                    r_pow = r_pow + 6;
+                }
+                else if (r_pow < 0) {
+                    r_pow = r_pow - 6;
+                }
+                //Adjust left motor power
+                if (l_pow > 0) {
+                    l_pow = l_pow + 6;
+                }
+                else if (l_pow < 0) {
+                    l_pow = l_pow - 6;
+                }
+                //Adjust back motor power
+                if (b_pow > 0) {
+                    b_pow = b_pow + 6;
+                }
+                else if (b_pow < 0) {
+                    b_pow = b_pow - 6;
+                }
+                //**End friction compensation**
+
                 //Update motor powers
                 r_motor.SetPercent(r_pow);
                 l_motor.SetPercent(l_pow);
                 b_motor.SetPercent(b_pow);
+                LCD.WriteLine(r_pow);
 
                 //Not sure if a sleep is necessary or will even help
                 Sleep(50);
@@ -626,7 +685,7 @@ int main(void)
     arm_servo.SetDegree(180);
     
     //initialize RPS
-    //RPS.InitializeTouchMenu();
+    RPS.InitializeTouchMenu();
 
     //**Begin RPS Offset Measurement**
     // FEHFile *outsd = SD.FOpen("RPSOFF1.CSV", "w");
@@ -652,27 +711,29 @@ int main(void)
     //**End RPS Offset Measurement**
 
     //**Begin RPS Delay Measurement**
-    // #include "FEHAccel.h"
+
     // FEHFile *out = SD.FOpen("delay.csv", "w");
-    // SD.FPrintf(out, "Time, RPS X, Accel X\n");
+    // SD.FPrintf(out, "Time, RPS X, Accel X, Accel Y, Accel Z\n");
     // float init_time = TimeNow();
 
     // //loop 10 times
     // for (int i = 0; i < 10; i++){
     //     float start_time = TimeNow();
     //     //Drive forward for 0.7 seconds
-    //     r_motor.SetPercent(-15);
-    //     l_motor.SetPercent(15);
-    //     while (start_time - TimeNow() < 0.7){ 
-    //         SD.FPrintf(out, "%f, %f, %f\n", init_time - TimeNow(), RPS.X(), Accel.Y());
+    //     r_motor.SetPercent(-20);
+    //     l_motor.SetPercent(20);
+    //     while (TimeNow() - start_time < 0.7){
+    //         SD.FPrintf(out, "%f, %f, %f, %f, %f\n", TimeNow(), RPS.X(), Accel.X(), Accel.Y(), Accel.Z());
     //         Sleep(10); //100hz measurement
     //     }
 
+    //     Sleep(0.5);
+    //     start_time = TimeNow();
     //     //Back up for 0.5 seconds
-    //     r_motor.SetPercent(15);
-    //     l_motor.SetPercent(-15);
-    //     while (start_time - TimeNow() < 0.5){ 
-    //         SD.FPrintf(out, "%f, %f, %f\n", init_time - TimeNow(), RPS.X(), Accel.Y());
+    //     r_motor.SetPercent(20);
+    //     l_motor.SetPercent(-20);
+    //     while (TimeNow() - start_time < 0.5){ 
+    //         SD.FPrintf(out, "%f, %f, %f, %f, %f\n", TimeNow(), RPS.X(), Accel.X(), Accel.Y(), Accel.Z());
     //         Sleep(10); //100hz measurement
     //     }
     //     r_motor.Stop();
@@ -683,16 +744,17 @@ int main(void)
     //**End RPS Delay Measurement**
 
     //**Begin MoveWithRPS Test**
-    // float tmpx, tmpy;
-    // while (!LCD.Touch(&tmpx, &tmpy)) {
-    //     MoveWithRPS(18, 18, 0, 0.5, 360);
-    // }
-    // while (!LCD.Touch(&tmpx, &tmpy)) {
-    //     MoveWithRPS(18, 18, 90, 100, 2);
-    // }
+    float tmpx, tmpy;
+    LCD.ClearBuffer();
     // while (!LCD.Touch(&tmpx, &tmpy)) {
     //     MoveWithRPS(18, 18, 90);
     // }
+    LCD.ClearBuffer();
+    while (!LCD.Touch(&tmpx, &tmpy)) {
+        MoveWithRPS(18, 18, 90, 100, 1.5, true);
+    }
+    LCD.Clear();
+    LCD.WriteLine("Done");
     // for(float ang = 0; ang <= 2*M_PI; ang += M_PI/6){
     //     MoveWithRPS(23.0 + 7.0 * cos(ang), 51.0 + 7.0 * sin(ang), fmod(ang/M_PI*500, 360));
     //     Sleep(0.5);
