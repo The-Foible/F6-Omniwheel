@@ -114,7 +114,7 @@ float RPS_Y_OFFSET = 46.3;
                 LCD.Clear(SCARLET);
                 LCD.SetFontColor(WHITE);
                 LCD.WriteLine("QR CODE NOT FOUND");
-            } else if (tmp_heading == -2) {
+            } else if (tmp_x == -2 || tmp_y == -2 || tmp_heading == -2) {
                 LCD.Clear(DEEPSKYBLUE);
                 LCD.SetFontColor(BLACK);
                 LCD.WriteLine("DEADZONE");
@@ -141,7 +141,7 @@ float RPS_Y_OFFSET = 46.3;
 
             //Check how long it's been looping and break if it's more than 1s
             if((TimeNow() - start_time) > 1 ){
-                return 1;
+                return tmp_heading; //Return the current RPS value if there's an error. This allows for deadzone compensations
             }
         }
     }
