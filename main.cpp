@@ -42,21 +42,21 @@ float RPS_Y_OFFSET = 46.3;
             if (CdS.Value() > 0 && CdS.Value() < 0.5) {
                 return true;
                 //Write color to the screen
-                LCD.Clear();
+                LCD.Clear(RED);
                 LCD.WriteAt("Red",0,0);
             }
             //Return false if light values indicate blue
             else if (CdS.Value() > 0.9 && CdS.Value() < 1.5) {
                 return false;
                 //Write color to the screen
-                LCD.Clear();
+                LCD.Clear(BLUE);
                 LCD.WriteAt("Blue",0,0);
             }
             //Default if light values do not indicate a color
             else {
                 return false;
                 //Write color to the screen
-                LCD.Clear();
+                LCD.Clear(GOLD);
                 LCD.WriteAt("Undetected",0,0);
                 LCD.WriteAt(RPS.Heading(),5,20);
             }
