@@ -756,6 +756,8 @@ int main(void)
     //Move towards jukebox light
     TranslateWithEncoders(0,9,40);                       //speed changed from 25
 
+    arm_servo.SetDegree(120);
+
     //Turn to jukebox angle
     TurnWithRPS(180,25);
 
@@ -814,6 +816,8 @@ int main(void)
     //Turn towards lever
     TurnWithRPS(315, 25);
 
+    arm_servo.SetDegree(160);
+
     //Move forward to the levers
     TranslateWithEncoders(0,-9,20);
     
@@ -821,7 +825,7 @@ int main(void)
     MoveArmServo(75);
     Sleep(0.4);
     //Move servo back up
-    MoveArmServo(170);
+    MoveArmServo(160);
 
     //Back off lever
     TranslateWithEncoders(0,8.5,25);
