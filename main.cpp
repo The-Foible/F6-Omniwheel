@@ -426,14 +426,14 @@ float RPS_Y_OFFSET = 46.3;
     determine the current heading of the robot, which is then used to find how huch farther the robot must turn to reach the 
     input angle. 
     */
-    void TurnWithRPS(float angle, int power) {
+    void TurnWithRPS(float angle, int power, float accuracy = 2.0) {
         float start_time = TimeNow();
         float current_heading;
 
         FEHFile *sd = SD.FOpen("RPST.CSV", "a");
 
         //Loops until the robot is less than two degrees from the goal or 5 seconds have past
-        while((fabs(angle - RPS.Heading()) > 2 ) && (start_time-TimeNow() < 5.0 )){
+        while((fabs(angle - RPS.Heading()) > accuracy) && (start_time-TimeNow() < 5.0 )){
             LCD.Clear(BLACK);
             LCD.Write("hdg (deg): ");
             LCD.Write(current_heading);
@@ -754,26 +754,25 @@ int main(void)
     while(!GetLightColor());
 
     //Move towards jukebox light
-    //TranslateWithRPS(16,15.2,25);
     TranslateWithEncoders(0,9,40);                       //speed changed from 25
 
     //Turn to jukebox angle
     TurnWithRPS(180,25);
 
     //Move to jukebox light
-    TranslateWithRPS(jukeboxX,jukeboxY,30,0.5);          //speed changed from 25
+    TranslateWithRPS(jukeboxX,jukeboxY,30);          //speed changed from 25
     
     //Get the light color and press correct button
     if(GetLightColor()) {
         //RED
         TranslateWithRPS(7.4,12,25,0.75);
-        TurnWithRPS(180,25);
+        //TurnWithRPS(180,25);
         TranslateWithTime(0.5,15,-1,0);
 
     } else {
         //BLUE
         TranslateWithRPS(10.6,12,25,0.75);
-        TurnWithRPS(180,25);
+        //TurnWithRPS(180,25);
         TranslateWithTime(0.5,15,-1,0);
     }
 
@@ -782,7 +781,7 @@ int main(void)
     float start_time = TimeNow();
     do{
         //Move to the base of the ramp
-        TranslateWithRPS(18, 18, 30, 0.5);
+        TranslateWithRPS(18, 18, 30);
 
         //Turn towards the ramp
         TurnWithRPS(270, 25);
@@ -799,33 +798,28 @@ int main(void)
     if (RPS.GetIceCream() == 0) {
         //Move to the vanilla lever path
         LCD.Write("Vanilla");
-        TranslateWithRPS(16, 52.2, 40, 0.5);
-        //Sleep(0.25);
+        TranslateWithRPS(16.7, 51.5, 40);
     }
     else if (RPS.GetIceCream() == 1) {
         //Move to the twist lever path
         LCD.Write("Twist");
-        TranslateWithRPS(19, 55.3, 40, 0.5);
-        //Sleep(0.25);
+        TranslateWithRPS(19.7, 54.6, 40);
     }
     else if (RPS.GetIceCream() == 2){
         //Move to the chocolate lever path
         LCD.Write("Chocolate");
-        TranslateWithRPS(21.2, 58.3, 40, 0.5);
-        //Sleep(0.25);
+        TranslateWithRPS(22.1, 57.8, 40);
     }
 
     //Turn towards lever
     TurnWithRPS(315, 25);
-    //Sleep(0.25);
 
     //Move forward to the levers
-    TranslateWithEncoders(0,-8,20);
-    //Sleep(0.5);
+    TranslateWithEncoders(0,-9,20);
     
     //Flip the correct lever down
     MoveArmServo(75);
-    Sleep(0.5);
+    Sleep(0.4);
     //Move servo back up
     MoveArmServo(170);
 
@@ -833,8 +827,8 @@ int main(void)
     TranslateWithEncoders(0,8.5,25);
 
     //Go to sink
-    TurnWithRPS(90,25);
-    TranslateWithRPS(9 ,48 ,40, 2);
+    TurnWithRPS(90,35);
+    TranslateWithRPS(9 ,47 ,40, 2);
     TranslateWithTime(0.5, 25, -1, 0);
     TranslateWithTime(1.0, 20, 0, -1);
 
@@ -847,19 +841,19 @@ int main(void)
     if (RPS.GetIceCream() == 0) {
         //Move to the vanilla lever path
         LCD.Write("Vanilla");
-        TranslateWithRPS(15.3, 52.9, 40, 0.5);
+        TranslateWithRPS(16.7, 51.5, 40);
         //Sleep(0.25);
     }
     else if (RPS.GetIceCream() == 1) {
         //Move to the twist lever path
         LCD.Write("Twist");
-        TranslateWithRPS(18.3, 56, 40, 0.5);
+        TranslateWithRPS(19.7, 54.6, 40);
         //Sleep(0.25);
     }
     else if (RPS.GetIceCream() == 2){
         //Move to the chocolate lever path
         LCD.Write("Chocolate");
-        TranslateWithRPS(20.5, 59, 40, 0.5);
+        TranslateWithRPS(22.1, 57.4, 40);
         //Sleep(0.25);
     }
 
@@ -867,8 +861,7 @@ int main(void)
     TurnWithRPS(315, 25);
     
     //Move forward to the lever
-    //Sleep(0.25);
-    TranslateWithEncoders(0,-7,20);
+    TranslateWithEncoders(0,-9,20);
 
     //Flip ice cream lever up 
     MoveArmServo(85);
@@ -881,8 +874,7 @@ int main(void)
 
     //Move to ticket
     // TranslateWithRPS(28,50,40);
-    // Sleep(0.25);
-    TranslateWithRPS(30.9, 46, 30, 0.5);              //speed changed from 25
+    TranslateWithRPS(30.9, 46, 30);              //speed changed from 25
     TranslateWithTime(2.0,20,1,-1);
     
     //Move ticket over
@@ -897,26 +889,23 @@ int main(void)
     TurnWithRPS(90,25);
 
     //Move into the burger wheel
-    TranslateWithTime(0.5, 7, 0, 1);
+    TranslateWithTime(0.8, 7, 0, 1);
 
     //Use servo to flip the burger
     MoveBurgerServo();
 
     //Back off the burger wheel
     TranslateWithEncoders(0,-5,25);
-    //Sleep(0.25);
 
     //Move to the top of the ramp
-    TranslateWithRPS(18,46,35, 0.5);               //speed changed from 25
-    //Sleep(0.25);
+    TranslateWithRPS(18,46,35);               //speed changed from 25
 
     //Go down the ramp
-    TranslateWithRPS(18,20,35, 0.5);              //speed changed from 25
-    //Sleep(0.25);
+    TranslateWithRPS(18,20,35, 2);              //speed changed from 25
 
     //Move to final button
-    TurnWithRPS(135,25);   
-    Sleep(0.25);
+    TurnWithRPS(135,25,5);   
+    // Sleep(0.25);
     TranslateWithTime(10.0,30,0,-1);
 
     Sleep(3.0);
